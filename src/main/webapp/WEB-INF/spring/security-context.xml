@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일              수정자             수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.15     박연욱           최초수정               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xmlns:beans="http://www.springframework.org/schema/beans"
+   xmlns:c="http://www.springframework.org/schema/c"
+   xmlns:p="http://www.springframework.org/schema/p"
+   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+      http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-4.2.xsd">
+   
+   <!-- SHA512 단방향 함수를 이용한 암호화 -->
+   <beans:bean id="shaPasswordEncoder" class="org.springframework.security.authentication.encoding.ShaPasswordEncoder" 
+      c:strength="512"
+      p:encodeHashAsBase64="true"
+   />
+   
+   <authentication-manager>
+      <authentication-provider user-service-ref="customUserDetailService">
+         <password-encoder ref="shaPasswordEncoder" />
+      </authentication-provider>   
+   </authentication-manager>  
+   
+   <!-- springSecurityFilterChain을 타지않을 리퀘스트 지정 -->
+   <http pattern="*.css" security="none" />
+   <http pattern="*.js" security="none" />
+   <beans:bean id="customAuthenticationSuccessHandler" class="kr.or.ddit.handler.CustomAuthenticationSuccessHandler"></beans:bean>
+   <http auto-config="true" use-expressions="true">
+     
+     <!-- 로그인 설정 -->
+      <form-login
+         login-page="/"
+         login-processing-url="/login/loginCheck.do"
+         username-parameter="emp_id"
+         password-parameter="emp_pass"
+         default-target-url="/mainPage"
+         always-use-default-target="false"
+         authentication-failure-url="/"
+         authentication-success-handler-ref="customAuthenticationSuccessHandler"
+      />
+      
+
+      <!-- 세선죵로 후에도 인증 상태를 유지하기 위해 쿠키등으로 rememberMe 기능 이용을 위한 설정 -->
+      <remember-me key="ismsKey"  token-validity-seconds="604800"/>
+   
+      
+      <!-- 로그아웃 대신 커스텀 url사용하기 위한 설정 -->
+      <logout logout-url="/common/logOut.do" logout-success-url="/" delete-cookies="JSESSIONID,SPRING_SECURITY_REMEMBER_ME_COOKIE" />
+      
+      <anonymous/>
+      
+      <session-management>
+         <!-- 특정 아이디에 대해 동시 생성가능한 세션수 지정 -->
+         <!-- 동시 세션 기능을 지원하기 위해 HttpSEssionEventPublisher를 리스너로 등록함. -->
+         <!-- error-if-maximum-exceeded="true" 를 사용하는 경우 최대허용수를 넘는 세션에서 expire 발생 , false(default)인 경우 기본적으로 가장 오래된 세션이 expire됨-->
+         <!-- 동시 세션을 지원하기 위해서는 반드시 UserDetails의 hashCode, equals 를 명확하게 정의하여 객체 상태 비교가 가능하도록 해야함 -->
+         <concurrency-control max-sessions="1" expired-url="/?error=true" />
+      </session-management>
+      
+      <!-- 리소스 패턴별 인증 및 인가 설정을 위한 엘리먼트 등록 -->
+      <!-- access 속성으로 ConfigAttribute를 등록하게 되는데, 여기서 securityEL을 쓰기 위해 use-expressions="true" 설정이 필요함 -->
+<!--      <access-denied-handler error-page="/mainPage"/> -->
+      <intercept-url pattern="/myPage/**" access="isAuthenticated()"/>            
+      <intercept-url pattern="/purchasingTeam/**" access="hasAnyRole('ROLE_EMPLOYEE','ROLE_MANAGER','ROLE_CHIEF','ROLE_TEAMLEADER')"/>            
+      <intercept-url pattern="/salesTeam/**" access="hasAnyRole('ROLE_EMPLOYEE','ROLE_MANAGER','ROLE_CHIEF','ROLE_TEAMLEADER')"/>            
+      <intercept-url pattern="/salesTeam/**" access="hasAnyRole('ROLE_EMPLOYEE','ROLE_MANAGER','ROLE_CHIEF','ROLE_TEAMLEADER','ROLE_SUPERMANAGER')"/>            
+      <intercept-url pattern="/superManager/**" access="hasRole('ROLE_SUPERMANAGER')"/>            
+      <intercept-url pattern="/setting/**" access="hasRole('ROLE_ADMIN')"/>     
+      <intercept-url pattern="/chatting/**" access="hasAnyRole('ROLE_EMPLOYEE','ROLE_MANAGER','ROLE_CHIEF','ROLE_TEAMLEADER','ROLE_SUPERMANAGER')"/>       
+      <intercept-url pattern="/mail/**" access="hasAnyRole('ROLE_EMPLOYEE','ROLE_MANAGER','ROLE_CHIEF','ROLE_TEAMLEADER','ROLE_SUPERMANAGER','ROLE_ADMIN')"/>       
+      <csrf disabled="true"/>
+      
+      <access-denied-handler error-page="/main/access_denied_page"/>
+      
+   </http>
+   
+   
+</beans:beans>

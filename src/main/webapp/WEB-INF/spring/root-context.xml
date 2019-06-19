@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xmlns:c="http://www.springframework.org/schema/c"
+   xmlns:context="http://www.springframework.org/schema/context"
+   xmlns:p="http://www.springframework.org/schema/p"
+   xmlns:util="http://www.springframework.org/schema/util"
+   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+      http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+      http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.3.xsd">
+
+<!--    스키마 종류: beans, c, p, context, util -->
+   
+   <context:component-scan base-package="kr.or.ddit" use-default-filters="false">
+      <context:include-filter type="annotation" 
+         expression="org.springframework.stereotype.Component"/>
+      <context:include-filter type="annotation" 
+         expression="org.springframework.stereotype.Repository"/>
+      <context:include-filter type="annotation" 
+         expression="org.springframework.stereotype.Service"/>
+      <context:include-filter type="annotation" 
+         expression="org.aspectj.lang.annotation.Aspect"/>   
+      <context:exclude-filter type="annotation" 
+         expression="org.springframework.stereotype.Controller"/>
+      <context:exclude-filter type="annotation" 
+             expression="org.springframework.web.bind.annotation.ControllerAdvice"/>  
+      </context:component-scan>
+
+   <util:properties id="appInfo" 
+      location="classpath:kr/or/ddit/appInfo.properties" />
+      
+<!--    <util:properties id="security_message" location="classpath:kr/or/ddit/security_message.properties"></util:properties>    -->
+      
+   <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+      <property name="basenames">
+         <list>
+            <value>WEB-INF/message/security_message</value>
+            <value>org.springframework.security.messages_ko_KR</value>
+            <value>WEB-INF/message/eunwoo</value>
+            <value>WEB-INF/message/dahye</value>
+            <value>WEB-INF/message/jingyeong</value>
+         </list>
+      </property>
+      <property name="defaultEncoding" value="UTF-8" />
+      <property name="cacheSeconds" value="5" />
+   </bean>   
+   
+<!--    <bean id="javaMailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl"> -->
+<!--       <property name="host" value="smtp.gmail.com" /> -->
+<!--       <property name="port" value="587" /> -->
+<!--       <property name="defaultEncoding" value="utf-8" /> -->
+<!--       <property name="username" value="pyu7215" /> -->
+<!--       <property name="password" value="pyu10812." /> -->
+      
+<!--       <property name="javaMailProperties"> -->
+<!--          <props> -->
+<!--             <prop key="mail.smtp.ssl.trust">smtp.gmail.com</prop> -->
+<!--             <prop key="mail.smtp.starttls.enable">true</prop> -->
+<!--             <prop key="mail.smtp.auth">true</prop> -->
+<!--          </props> -->
+<!--       </property> -->
+<!--    </bean> -->
+   
+   <bean id="chatSessionMap" class="java.util.HashMap" />
+   
+   <bean id="sessionMap" class="java.util.HashMap" />
+   
+<!--    <bean id="mailService" class="kr.or.ddit.mail.service.MailServiceImpl"> -->
+<!--       <property name="javaMailSender" ref="javaMailSender" /> -->
+<!--    </bean> -->
+      
+   <bean id="filterMultipartResolver" class="org.springframework.web.multipart.support.StandardServletMultipartResolver" />   
+   <bean id="multipartContent" class="com.google.api.client.http.MultipartContent"></bean>
+   <bean id="commonsMultipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver"></bean>
+   
+</beans>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.purchasingTeam.itemManage.dao.IItemManageDAO">
+
+	<!-- 이것을 select문에서 참조한다(아이디값이 같아야 참조할 수 있다) -->
+	<!-- 만약 검색어가 비어있지 않다면 -->
+	<sql id="searchFrag">
+		<trim prefix="AND" >
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test="'item_code'.equals(searchType)">
+						A.ITEM_CODE LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'item_name'.equals(searchType)">
+						A.ITEM_NAME LIKE '%' || #{searchWord} || '%'
+					</when>	
+					<when test="'all'.equals(searchType)">
+						A.ITEM_CODE LIKE '%' || #{searchWord} || '%' OR
+						A.ITEM_NAME LIKE '%' || #{searchWord} || '%'
+					</when>
+				</choose>
+			</if>
+		</trim>
+	</sql>
+
+	<select id="selectTopItemCode" resultType="kr.or.ddit.vo.ItemVO">
+		SELECT DISTINCT ITEM_CODE, ITEM_NAME FROM ITEM WHERE TOP_ITEM_CODE IS NULL
+	</select>
+
+	<!-- 품목 조회하기 -->
+	<select id="selectItemList" resultType="kr.or.ddit.vo.ItemVO" parameterType="kr.or.ddit.vo.PagingVO">
+	    
+	    WITH ORDEREDITEMLIST AS(
+	    	 SELECT A.ITEM_CODE 
+		       		,B.ITEM_NAME TOP_ITEM_NAME 
+		       		,A.TOP_ITEM_CODE 
+		       		,A.ITEM_NAME 
+		     FROM  	ITEM A LEFT OUTER JOIN ITEM B 
+		    		ON (A.TOP_ITEM_CODE = B.ITEM_CODE)
+		     WHERE  A.ITEM_DELETE = 'N'
+			<include refid="searchFrag" />
+		    START WITH B.TOP_ITEM_CODE IS NULL
+		    CONNECT BY PRIOR A.ITEM_CODE = B.TOP_ITEM_CODE
+	    )
+	    SELECT *
+	    FROM (
+	    	SELECT ROWNUM RNUM, ORDEREDITEMLIST.*
+	    	FROM ORDEREDITEMLIST
+	    ) A
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	    
+	</select>
+
+	<!-- 품목 페이지네이션을 위해 아이템 갯수 세기 -->
+	<!-- 검색하고난 결과만 카운트해서 페이지네이션 할 수도 있기때문에 include 필요 -->
+	<select id="selectItemCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(A.ITEM_CODE) 
+		 FROM  	ITEM A LEFT OUTER JOIN ITEM B 
+		    		ON (A.TOP_ITEM_CODE = B.ITEM_CODE)
+		 WHERE  A.ITEM_DELETE = 'N'
+		<include refid="searchFrag" />
+	</select>
+
+	<insert id="insertTopItem" parameterType="kr.or.ddit.vo.ItemVO">
+		<selectKey keyProperty="item_code" resultType="string" order="BEFORE">
+		SELECT 'IC_'|| RPAD('0', 3, MAX(SUBSTR(ITEM_CODE,4,6)+1)) FROM ITEM
+		</selectKey>
+		INSERT
+		INTO ITEM(ITEM_CODE, TOP_ITEM_CODE, ITEM_NAME, ITEM_DELETE)
+		VALUES(#{item_code}, NULL, #{item_name}, 'N')
+	</insert>
+
+
+	<!-- 품목 등록 -->
+	<insert id="insertItem" parameterType="kr.or.ddit.vo.ItemVO"> 
+	<selectKey keyProperty="item_code" resultType="string" order="BEFORE">
+		SELECT 'IC_'|| RPAD('0', 3, MAX(SUBSTR(ITEM_CODE,4,6)+1)) FROM ITEM
+	</selectKey>
+		INSERT INTO ITEM(ITEM_CODE, TOP_ITEM_CODE, 
+			ITEM_NAME, ITEM_DELETE) 
+		VALUES(#{item_code}, #{top_item_code}, #{item_name}, 'N' ) 
+	</insert>
+
+	<!-- 품목 삭제 -->
+	<update id="deleteItem" parameterType="string">
+		UPDATE item
+		SET
+		ITEM_DELETE='Y'
+		WHERE ITEM_CODE = #{item_code}
+	</update>
+	
+	<!-- 품목을 토대로 상품 조회하기 -->
+	<select id="selectProductList" resultType="kr.or.ddit.vo.ProductVO" parameterType="string">
+		SELECT 
+			PROD_NAME,A.ITEM_CODE, ITEM_NAME
+			, PROD_SIZE, PROD_COST, PROD_OUTLINE, PROD_DETAILS
+			, PROD_IMG
+			, PROD_COLOR, PROD_QTY
+		FROM PRODUCT A
+		INNER JOIN ITEM B ON A.ITEM_CODE = B.ITEM_CODE
+		WHERE ITEM_NAME = #{item_name}
+	</select>
+	
+	
+</mapper>

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일        수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.14    정은우     최초작성               -->
+<!--  2019.05.15    정은우     검색기능추가               -->
+<!--  2019.05.17    정은우     insert추가               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+
+<mapper namespace="kr.or.ddit.purchasingTeam.stockManage.dao.IWarehousingManageDAO">
+	<sql id="searchFrag">
+		<if test="searchData!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.ware_date)">
+				AND TO_CHAR(WARE_DATE,'YYYY-MM-DD') = to_date(#{searchData.ware_date}, 'yyyy-mm-dd')
+			</if>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.prod_name)">
+				AND PROD_NAME LIKE '%'||#{searchData.prod_name}||'%'
+			</if>
+		</if>	
+	</sql>	
+	
+	<select id = "selectWarehousingCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(pur_ord_code)
+		FROM WARE_ORD_LIST
+		where 1=1
+		<include refid="searchFrag" />
+	</select>
+	
+	<!-- 리스트 조회할때 RNUM -->
+	<select id="selectWarehousingList" resultType="kr.or.ddit.vo.Pur_Ord_ListVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH WARELIST AS (
+		    SELECT TO_CHAR(WARE_DATE,'YYYY-MM-DD') AS WARE_DATE, ITEM_NAME, 
+		    PROD_NAME, PUR_OPROD_QTY, PROD_NO, PROD_SIZE, PROD_COLOR,
+		    CL_NO, CL_NAME, EMP_NAME, PUR_ORD_CODE
+		    FROM WARE_ORD_LIST 
+		    WHERE PUR_ORD_COMPLETE = 'Y' 
+		    <include refid="searchFrag" />
+		    ORDER BY WARE_DATE DESC, PUR_ORD_CODE DESC 
+		)
+		SELECT *
+		FROM (
+		    SELECT ROWNUM RNUM, WARELIST.*
+		    FROM WARELIST
+		) A
+		<![CDATA[
+ 			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+ 		]]>
+	</select>
+	
+	<!-- 모달창에 띄울 발주서리스트 가져올때 사용-->
+	<select id="selectOrdList" resultType="kr.or.ddit.vo.SelectPurOrdListVO">
+		SELECT DISTINCT TO_CHAR(PUR_ORD_DATE, 'YYYY-MM-DD') AS PUR_ORD_DATE,
+						 PUR_ORD_CODE, CL_NAME, ELEC_COMPLE
+		FROM WARE_ORD_LIST
+        WHERE PUR_ORD_CODE NOT IN (SELECT PUR_ORD_CODE FROM WARE B)
+        AND ELEC_COMPLE = 'Y'
+		ORDER BY PUR_ORD_DATE DESC
+	</select>
+ 
+	<!-- 발주서번호 선택해서 일치하는 정보 가져올때 사용 -->
+	<select id="selectPurOrd" resultMap="ordMap" parameterType="String">
+		SELECT PUR_ORD_CODE, PUR_ORD_DATE, CL_NO, CL_NAME, 
+				PUR_OPROD_COST, PUR_OPROD_QTY, PROD_SIZE, PROD_COLOR,
+				ITEM_NAME, PROD_NO, PROD_NAME
+		FROM WARE_ORD_LIST
+		WHERE PUR_ORD_CODE = #{pur_ord_code}
+		AND ELEC_COMPLE = 'Y' 
+		ORDER BY PROD_NO ASC
+	</select>
+	<resultMap type="kr.or.ddit.vo.Ware_Ord_ListVO" id="ordMap" autoMapping="true">
+		<id property="pur_ord_code" column="PUR_ORD_CODE" />
+		<collection property="pur_oprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Pur_Oprod_ListVO" />
+	</resultMap>
+	
+	<!-- 입고등록 -->
+	<insert id="insertWarehousing" parameterType="kr.or.ddit.vo.WareVO">
+		<selectKey resultType="int" keyProperty="ware_no" order="BEFORE">
+			SELECT SEQ_WARE.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO WARE(
+			 WARE_NO, PUR_ORD_CODE, EMP_ID,     
+			 WARE_DATE, WARE_DELETE 
+		) VALUES (
+			 #{ware_no}, #{pur_ord_code}, 
+			 #{emp_id}, #{ware_date}, 'N' 
+		)
+	</insert>
+	
+	<!-- 엑셀 -->
+	<select id="selectExcelList" resultType="kr.or.ddit.vo.Pur_Ord_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT TO_CHAR(WARE_DATE,'YYYY-MM-DD') AS WARE_DATE, ITEM_NAME, 
+		   		 PROD_NAME, PUR_OPROD_QTY, PROD_NO, PROD_SIZE, PROD_COLOR,
+		    	CL_NO, CL_NAME, EMP_NAME, PUR_ORD_CODE
+		FROM PUR_ORD_LIST
+		WHERE WARE_DATE IS NOT NULL
+		<include refid="searchFrag" />
+		ORDER BY WARE_DATE DESC
+	</select>
+	
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

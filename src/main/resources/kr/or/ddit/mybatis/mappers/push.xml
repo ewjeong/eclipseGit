@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.IPushDAO">
+	<select id="selectNextAuthorizer" parameterType="kr.or.ddit.vo.Elec_ApprlineVO" resultType="kr.or.ddit.vo.Elec_ApprlineVO">
+		SELECT	
+			ELEC_APPRLINE_CODE
+			, APPR_STATUS_CODE
+			, ELEC_REJECT_REASON
+			, AUTHORIZED_ID
+			, INSTEAD_ID
+		FROM	ELEC_APPRLINE
+		WHERE	ELEC_NO = #{ elec_no }
+		AND		ELEC_PRIORITY = #{ elec_priority }
+	</select>
+	
+	<!-- 다음 결재자에게 알림 insert  -->
+	<insert id="insertAlert" parameterType="map">
+		<selectKey keyProperty="alert_no" resultType="int" order="BEFORE">
+			SELECT	SEQ_ALERT.NEXTVAL FROM	DUAL
+		</selectKey>
+		INSERT INTO ALERT (
+			ALERT_NO,
+		    ALERT_TIME,
+		    ALERT_CONTENT,
+		    RECEIVER
+		) VALUES(
+			#{alert_no},
+		    sysdate,
+		    #{alert_content},
+		    #{ emp_id }
+		)
+	</insert>
+	
+	<select id="selectAlertListById" parameterType="String" resultType="kr.or.ddit.vo.AlertVO">
+		SELECT	
+			ALERT_NO,
+		    ALERT_TIME,
+		    ALERT_CONTENT,
+		    RECEIVER
+		FROM	ALERT	
+		WHERE	RECEIVER = #{ receiver }
+	</select>
+</mapper> 

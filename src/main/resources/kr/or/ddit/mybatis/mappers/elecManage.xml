@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.IElecManageDAO">
+	<!-- 양식 폼 관리 -->
+	<select id="selectFormCount" parameterType="kr.or.ddit.vo.PagingVO" resultType="long">
+		SELECT	COUNT(ELEC_FORM_CODE)
+		FROM	ELEC_FORM
+	</select>
+	
+	<select id="selectFormList" parameterType="kr.or.ddit.vo.PagingVO" resultType="kr.or.ddit.vo.Elec_FormVO">
+		WITH ORDEREDFORM AS (
+			SELECT
+			    EF.ELEC_FORM_CODE
+			    , ELEC_FORM_TITLE, ELEC_FORM_WRITER
+			    , EF.SEND_CODE
+			    , EMP.EMP_NAME
+			FROM	ELEC_FORM  EF
+			    INNER JOIN  EMPLOYEE  EMP  ON ( EF.ELEC_FORM_WRITER = EMP.EMP_ID)
+			ORDER BY ELEC_FORM_CODE  DESC
+		)
+		SELECT *
+		FROM	(
+			SELECT ROWNUM RNUM, ORDEREDFORM.*
+			FROM	ORDEREDFORM
+		) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<select id="selectForm" parameterType="String" resultType="kr.or.ddit.vo.Elec_FormVO">
+		SELECT
+			ELEC_FORM_CODE
+			, ELEC_FORM_HTML
+			, ELEC_FORM_TITLE
+			, ELEC_FORM_WRITER
+			, SEND_CODE	
+		FROM	ELEC_FORM
+		WHERE	ELEC_FORM_CODE = #{ elec_form_code }
+	</select>
+	
+	<insert id="insertForm" parameterType="kr.or.ddit.vo.Elec_FormVO">
+		<selectKey keyProperty="elec_form_code" resultType="String" order="BEFORE">
+			SELECT  'EFC' || LPAD ( NVL ( TO_NUMBER( SUBSTR( MAX(ELEC_FORM_CODE), 4 ) ) , 0 ) + 1 , 3, '0' )
+			FROM	ELEC_FORM
+		</selectKey>
+		INSERT INTO ELEC_FORM (
+			ELEC_FORM_CODE
+			, ELEC_FORM_HTML
+			, ELEC_FORM_TITLE
+			, ELEC_FORM_WRITER
+			, SEND_CODE
+		) VALUES (
+			#{ elec_form_code }
+			, #{ elec_form_html , jdbcType=CLOB}
+			, #{ elec_form_title, jdbcType=VARCHAR}
+			, #{ elec_form_writer, jdbcType=VARCHAR }
+			, #{ send_code, jdbcType=VARCHAR }
+		)
+	</insert>
+	
+	<!-- 결재선 관리 -->
+	<select id="selectFixLineCount" parameterType="kr.or.ddit.vo.PagingVO" resultType="long">
+		SELECT	COUNT(FL_NO)
+		FROM	FIX_LINE
+	</select>
+	
+	<resultMap type="kr.or.ddit.vo.FixLineVO" id="fixLineMap" autoMapping="true">
+		<id column="FL_NO" property="fl_no" />
+		<collection property="fix_approvalList"  javaType="java.util.ArrayList" ofType="kr.or.ddit.vo.Fix_ApprovalVO" autoMapping="true"></collection>
+	</resultMap>
+	<select id="selectFixLineList" parameterType="kr.or.ddit.vo.PagingVO" resultMap="fixLineMap">
+		SELECT	
+		    FL.FL_NO
+		    , FL.FL_TITLE
+		    , FL.OWNER_ID 
+		    , EMP.EMP_NAME
+		    , MAX( 
+		        CASE 
+		            WHEN FIX_PRIORITY = 1 THEN FIXEMP.EMP_NAME
+		            END
+		    )  AS FIRST
+		     , MAX( 
+		        CASE 
+		            WHEN FIX_PRIORITY = 2 THEN FIXEMP.EMP_NAME
+		            END
+		    )  AS SECOND
+		      , MAX (
+		        CASE 
+		            WHEN FIX_PRIORITY = 3 THEN FIXEMP.EMP_NAME
+		            END
+		    ) AS LAST
+		FROM	FIX_LINE  FL
+		    INNER JOIN EMPLOYEE EMP ON (FL.OWNER_ID = EMP.EMP_ID)
+		    LEFT JOIN  FIX_APPROVAL  FA  ON ( FL.FL_NO = FA.FIX_LINE_NO )
+		    INNER JOIN EMPLOYEE FIXEMP  ON( FA.AUTHORIZED_ID = FIXEMP.EMP_ID)
+		GROUP BY FL.FL_NO, FL.FL_TITLE, FL.OWNER_ID, EMP.EMP_NAME
+	</select>
+	
+	<select id="selectFixLine" parameterType="String" resultType="kr.or.ddit.vo.FixLineVO">
+		
+	</select>
+	
+	<insert id="insertFixLine" parameterType="kr.or.ddit.vo.FixLineVO">
+		<selectKey keyProperty="fl_no" resultType="int" order="BEFORE">
+			SELECT	SEQ_FIXLINE.NEXTVAL
+			FROM	DUAL
+		</selectKey>
+		INSERT ALL 
+			INTO FIX_LINE (
+			    FL_NO , FL_TITLE
+			    , SEND_CODE
+			    , OWNER_ID
+			) VALUES (
+			    #{ fl_no }, #{ fl_title }
+			    , #{ send_code }
+			    , #{ owner_id } 
+			)
+			<foreach collection="fix_approvalList" item="fixApproval" index="idx">
+				INTO FIX_APPROVAL (
+					FIX_APPROVAL_NO
+					, FIX_DELETE
+					, FIX_LINE_NO, AUTHORIZED_ID, FIX_PRIORITY
+					
+				) VALUES (
+					(
+						SELECT  MAX ( FIX_APPROVAL_NO )
+						FROM	FIX_APPROVAL
+					) + #{ idx } + 1
+					, 'N'
+					, #{ fl_no } , #{ fixApproval.authorized_id } , #{ idx } + 1
+					
+				)
+			</foreach>
+			SELECT * FROM DUAL
+	</insert>
+<!-- 	<delete id="deleteForm" parameterType="String"> -->
+<!-- 		DELETE	FROM	ELEC_FORM -->
+<!-- 		WHERE	ELEC_FORM_CODE = #{ elec_form_code }	 -->
+<!-- 	</delete> -->
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

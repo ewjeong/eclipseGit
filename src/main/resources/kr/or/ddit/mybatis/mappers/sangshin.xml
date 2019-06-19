@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.ISangshinDAO">
+	<select id="selectSangShinCount" parameterType="kr.or.ddit.vo.PagingVO" resultType="long">
+		SELECT	COUNT(ELEC_NO)
+		FROM	ELEC_APPROVAL
+		WHERE	ELEC_WRITER = #{ emp_id }
+	</select>
+	
+	<select id="selectSangShinList" parameterType="kr.or.ddit.vo.PagingVO" resultType="kr.or.ddit.vo.Elec_ApprovalVO">
+		SELECT 
+		    AP.ELEC_NO, SEND_CODE, ELEC_WRITER
+		    , ELEC_FORM_CODE, ELEC_TITLE, ELEC_CONTENT
+		    , TO_CHAR(ELEC_SENDDATE, 'YYYY-MM-DD') AS ELEC_SENDDATE
+		    , ELEC_COMPLE
+		    , SEND_TYPE_CODE
+		    , APPR_STATUS_NAME
+		FROM	ELEC_APPROVAL  AP
+		   LEFT OUTER JOIN (
+		        SELECT   ELEC_NO, APPR_STATUS_NAME
+		        FROM    ELEC_APPRLINE  LINE
+		            INNER JOIN  APPR_STATUS STAT ON ( LINE.APPR_STATUS_CODE = STAT.APPR_STATUS_CODE )
+		        WHERE   APPR_STATUS_NAME = '반려'
+		   )   REJECT  ON ( AP.ELEC_NO = REJECT.ELEC_NO)
+		WHERE	ELEC_WRITER = #{ emp_id }
+		ORDER BY ELEC_NO DESC
+	</select>
+	
+	<resultMap type="kr.or.ddit.vo.Elec_ApprovalVO" id="sangshinMap" autoMapping="true">
+		<id property="elec_no" column="ELEC_NO" />
+		<collection property="fileList" ofType="kr.or.ddit.vo.AttachmentVO" autoMapping="true">
+			<id property="attach_no" column="ATTACH_NO" />
+		</collection>
+	</resultMap>
+	<select id="selectSangShin" parameterType="kr.or.ddit.vo.Elec_ApprovalVO" resultMap="sangshinMap">
+		SELECT 
+		    AP.ELEC_NO, SEND_CODE, ELEC_WRITER
+		    , ELEC_FORM_CODE, ELEC_TITLE, ELEC_CONTENT
+		    , ELEC_SENDDATE, ELEC_COMPLE
+		    , SEND_TYPE_CODE
+		    , APPR_STATUS_NAME
+		    , ATTACH_NO, ATTACH_ORGNAME
+			, ATTACH_PATH, ATTACH_SIZE
+			, ATTACH_FANCYSIZE, ATTACH_MIME
+		FROM	ELEC_APPROVAL AP
+			LEFT OUTER JOIN ATTACHMENT AT  ON  ( AP.ELEC_NO = AT.ELEC_NO )
+		    LEFT OUTER JOIN (
+		        SELECT ELEC_NO, APPR_STATUS_NAME
+		        FROM    ELEC_APPRLINE  LINE
+		            INNER JOIN APPR_STATUS  STAT ON ( LINE.APPR_STATUS_CODE = STAT.APPR_STATUS_CODE )
+		        WHERE   APPR_STATUS_NAME = '반려'
+		    ) REJECT ON ( AP.ELEC_NO = REJECT.ELEC_NO )
+		WHERE	ELEC_WRITER = #{ elec_writer }
+		AND		AP.ELEC_NO = #{ elec_no }
+	</select>
+	
+	<!-- 적용버튼 클릭 시 -->
+	<select id="selectFixLineList" resultType="kr.or.ddit.vo.FixLineVO">
+		SELECT	FL_NO, FL_TITLE, SEND_CODE, OWNER_ID
+		FROM	FIX_LINE
+	</select>
+
+	<resultMap type="kr.or.ddit.vo.FixLineVO" id="fixLineMap">
+		<id column="FL_NO" property="fl_no"/>
+		<collection property="fix_approvalList" javaType="java.util.ArrayList" ofType="kr.or.ddit.vo.Fix_ApprovalVO" autoMapping="true"></collection>
+	</resultMap>	
+	<select id="selectFixLine" parameterType="int" resultMap="fixLineMap">
+		SELECT	
+		    FL_NO, FL_TITLE, OWNER_ID
+		    , AUTHORIZED_ID
+		    , EMP_NAME
+		    , POS_NAME
+		FROM	FIX_LINE    FL
+		    INNER JOIN FIX_APPROVAL  FA  ON( FL.FL_NO = FA.FIX_LINE_NO )
+		    INNER JOIN EMPLOYEE  EM  ON ( FA.AUTHORIZED_ID = EM.EMP_ID )
+		    INNER JOIN POSITION   PO  ON (EM.POS_CODE = PO.POS_CODE )
+		WHERE	FL_NO = #{ fl_no }
+		ORDER BY FA.FIX_APPROVAL_NO
+	</select>
+	
+	<select id="selectFormList"  resultType="kr.or.ddit.vo.Elec_FormVO">
+		SELECT	ELEC_FORM_CODE, ELEC_FORM_TITLE, ELEC_FORM_WRITER, SEND_CODE
+		FROM	ELEC_FORM
+	</select>
+	
+	<select id="selectForm" parameterType="String" resultType="kr.or.ddit.vo.Elec_FormVO">
+		SELECT	ELEC_FORM_CODE, ELEC_FORM_HTML, ELEC_FORM_TITLE, ELEC_FORM_WRITER, SEND_CODE
+		FROM	ELEC_FORM
+		WHERE	ELEC_FORM_CODE = #{ elec_form_code }
+	</select>
+	
+	<!-- 수정 필요 !!! 주문서와 발주서는  SEND_TYPE_CODE 와 ELEC_CONTENT 고려해야 한다!!!
+		05.24 수정 완료  -->
+	<insert id="insertApproval" parameterType="kr.or.ddit.vo.Elec_ApprovalVO">
+		<selectKey keyProperty="elec_no" resultType="int" order="BEFORE">
+			SELECT	SEQ_APPROVAL.NEXTVAL
+			FROM	DUAL
+		</selectKey>
+		INSERT INTO ELEC_APPROVAL(
+			ELEC_NO, SEND_CODE, ELEC_WRITER
+			, ELEC_FORM_CODE, ELEC_TITLE, ELEC_CONTENT
+			, ELEC_SENDDATE, ELEC_COMPLE
+			, SEND_TYPE_CODE
+		) VALUES (
+			#{ elec_no }, #{ send_code }, #{ elec_writer }
+			, #{ elec_form_code }, #{ elec_title }, #{ elec_content }
+			, #{ elec_senddate }, 'N'
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(send_type_code)">
+				, #{ send_type_code }
+			</if>
+			<if test="@org.apache.commons.lang3.StringUtils@isBlank(send_type_code)">
+				, ''
+			</if>
+		)
+	</insert>
+	
+	<insert id="insertApprLine" parameterType="kr.or.ddit.vo.Elec_ApprovalVO">
+		INSERT ALL
+			<foreach collection="apprLineList" item="apprLine" index="idx">
+			INTO ELEC_APPRLINE (
+				ELEC_APPRLINE_CODE
+				, ELEC_NO
+				, APPR_STATUS_CODE
+				, ELEC_PRIORITY
+				, AUTHORIZED_ID
+				, OWNER_ID
+			) VALUES (
+				(
+					SELECT	MAX( ELEC_APPRLINE_CODE )
+					FROM	ELEC_APPRLINE
+				) + #{ idx } + 1
+				, #{ elec_no }
+				, ''
+				, #{ idx } + 1
+				, #{ apprLine.authorized_id }
+				, #{ elec_writer }
+			)
+			</foreach>
+			SELECT * FROM DUAL
+	</insert>
+	
+	<insert id="insertRefenrece" parameterType="kr.or.ddit.vo.Elec_ApprovalVO">
+		INSERT INTO REFERENCE (
+			ELEC_NO
+			, EMP_ID
+			, REF_VIEW, REF_VIEW_DATE
+		) VALUES (
+			#{ elec_no }
+			, #{ elec_writer }
+			, '' , ''
+		)
+	</insert>
+	
+	<update id="updateSaleOrdSheet" parameterType="String">
+		UPDATE	SALE_ORD
+		SET		ELEC_COMPLE = 'N'
+		WHERE	SALE_ORD_CODE = #{ sendTypeCode }
+	</update>
+	
+	<update id="updatePurOrdSheet" parameterType="String">
+		UPDATE	PUR_ORD
+		SET		ELEC_COMPLE = 'N'
+		WHERE	PUR_ORD_CODE = #{ sendTypeCode }
+	</update>
+<!-- 	<select id="selectApproval" resultType="int"> -->
+<!-- 		SELECT	MAX(ELEC_NO)	 -->
+<!-- 		FROM	ELEC_APPROVAL -->
+<!-- 	</select> -->
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

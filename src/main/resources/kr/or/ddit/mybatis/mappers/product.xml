@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.purchasingTeam.itemManage.dao.IProductManageDAO">
+	
+	<sql id="searchFrag">
+		<where>
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.prod_name)">
+				 	AND PROD_NAME LIKE '%'||#{searchData.prod_name}||'%'
+				</if>
+			 </if>	
+		</where>	 
+	</sql>	
+	
+	<!-- 페이징  -->
+	<select id="selectProdCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(prod_no)
+		FROM PRODUCT
+		<include refid="searchFrag" />
+	</select>
+	
+	<!-- 상품리스트조회 -->
+	<select id="selectProdList" resultType="kr.or.ddit.vo.ProductVO"
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH PRODLIST AS(
+            SELECT P.PROD_NO, I.ITEM_NAME, P.PROD_NAME, 
+			   P.PROD_SIZE, P.PROD_COLOR, P.PROD_COST
+            FROM PRODUCT P
+            INNER JOIN ITEM I ON P.ITEM_CODE = I.ITEM_CODE 
+            <include refid="searchFrag" />
+            ORDER BY P.PROD_NO ASC
+        )
+        SELECT *
+        FROM (
+            SELECT ROWNUM RNUM, PRODLIST.*
+            FROM PRODLIST
+        ) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+
+	<!-- 상품상세조회 -->
+	<select id="selectProdView" parameterType="Integer" resultType="kr.or.ddit.vo.ProductVO">
+	 	SELECT P.PROD_NO, P.PROD_NAME, P.PROD_OUTLINE, 
+	   		   P.PROD_SIZE, P.PROD_COLOR, P.PROD_COST,
+	   		   P.PROD_DETAILS, P.PROD_IMG,
+	   		   I.ITEM_NAME
+        FROM PRODUCT P
+        INNER JOIN ITEM I ON P.ITEM_CODE = I.ITEM_CODE
+        WHERE P.PROD_NO = #{prod_no}
+	</select>
+	
+	<select id="selectItemList" resultType="kr.or.ddit.vo.ItemVO">
+		SELECT	
+			ITEM_CODE
+			, TOP_ITEM_CODE
+			, ITEM_NAME
+			, ITEM_DELETE
+		FROM	ITEM
+		WHERE	ITEM_DELETE = 'N'
+	</select>
+
+	<insert id="insertProd" parameterType="kr.or.ddit.vo.ProductVO">
+		<selectKey keyProperty="prod_no" resultType="int" order="BEFORE">
+			SELECT	MAX(PROD_NO) + 1
+			FROM	PRODUCT
+		</selectKey>
+		INSERT INTO	PRODUCT (
+			PROD_NO
+			, ITEM_CODE
+			, PROD_NAME
+			, PROD_SIZE
+			, PROD_COST
+			, PROD_OUTLINE
+			, PROD_DETAILS
+			, PROD_IMG
+			, PROD_COLOR
+			, PROD_QTY
+		) VALUES (
+			#{ prod_no }
+			, #{ item_code }
+			, #{ prod_name }
+			, #{ prod_size , jdbcType=VARCHAR }
+			, #{ prod_cost }
+			, #{ prod_outline, jdbcType=VARCHAR }
+			, #{ prod_details , jdbcType=CLOB}
+			, #{ prod_img , jdbcType=BLOB}
+			, #{ prod_color, jdbcType=VARCHAR }
+			, #{ prod_qty , jdbcType=NUMERIC}
+		)
+	</insert>
+</mapper>
+
+
+
+
+
+
+
+
+
+

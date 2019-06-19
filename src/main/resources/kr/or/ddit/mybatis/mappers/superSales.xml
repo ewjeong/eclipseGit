@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.superManager.EmplscheduleManage.dao.ISalesManageDAO">
+
+	<sql id="searchFrag">
+		<where>
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.emp_name)">
+						EMP_NAME LIKE '%'||#{searchData.emp_name}||'%'
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.rel_date)">
+					AND	REL_DATE = to_date(#{searchData.rel_date},'yyyy-mm-dd')
+				</if>
+			</if>
+		</where>
+	</sql>
+	
+
+
+	<select id="selectEmpIncomeList" resultType="kr.or.ddit.vo.IncomeVO" parameterType="kr.or.ddit.vo.IncomeVO">
+		WITH ORDEREDRE AS(
+	    SELECT 	r.rel_no, to_char(r.rel_date,'yyyy-mm-dd') rel_date, 
+	    		sale_oprod_qty,sale_oprod_cost,
+	    		(so.sale_oprod_qty*so.sale_oprod_cost) income,
+	            c.cl_no, c.cl_name, e.emp_id, e.emp_name, e.emp_no ,p.prod_name prod_name
+        FROM 
+	        release r
+        INNER JOIN sale_ord s ON ( s.sale_ord_code = r.sale_ord_code )
+        INNER JOIN employee e ON ( e.emp_id = s.sale_ord_emp_id )
+        INNER JOIN sale_oprod so ON ( so.sale_ord_code = s.sale_ord_code )
+        INNER JOIN product p ON ( p.prod_no = so.prod_no )
+        INNER JOIN sale_est se ON ( se.sale_est_no = s.sale_est_no )
+        INNER JOIN client c ON ( c.cl_no = se.cl_no )
+        <include refid="searchFrag"/>	
+        ORDER BY rel_no
+        )
+        SELECT *
+        FROM(
+            SELECT ROWNUM RNUM, ORDEREDRE.*
+            FROM ORDEREDRE
+        )A
+        <![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>	
+	</select>
+	
+	<select id="selectEmpIncomeCount" resultType="long" parameterType="kr.or.ddit.vo.IncomeVO">
+		SELECT COUNT(R.REL_NO)
+        FROM 
+	        release r
+        INNER JOIN sale_ord s ON ( s.sale_ord_code = r.sale_ord_code )
+        INNER JOIN employee e ON ( e.emp_id = s.sale_ord_emp_id )
+        INNER JOIN sale_oprod so ON ( so.sale_ord_code = s.sale_ord_code )
+        INNER JOIN product p ON ( p.prod_no = so.prod_no )
+        INNER JOIN sale_est se ON ( se.sale_est_no = s.sale_est_no )
+        INNER JOIN client c ON ( c.cl_no = se.cl_no )
+        <include refid="searchFrag"/>
+	</select>
+	
+	<select id="selectEmpExcel" resultType="kr.or.ddit.vo.IncomeVO" parameterType="kr.or.ddit.vo.IncomeVO">
+		SELECT 	r.rel_no, to_char(r.rel_date,'yyyy-mm-dd') rel_date, 
+	    		sale_oprod_qty,sale_oprod_cost,
+	    		(so.sale_oprod_qty*so.sale_oprod_cost) income,
+	            c.cl_no, c.cl_name, e.emp_id, e.emp_name, e.emp_no ,p.prod_name prod_name
+        FROM 
+        release r
+        INNER JOIN sale_ord s ON ( s.sale_ord_code = r.sale_ord_code )
+        INNER JOIN employee e ON ( e.emp_id = s.sale_ord_emp_id )
+        INNER JOIN sale_oprod so ON ( so.sale_ord_code = s.sale_ord_code )
+        INNER JOIN product p ON ( p.prod_no = so.prod_no )
+        INNER JOIN sale_est se ON ( se.sale_est_no = s.sale_est_no )
+        INNER JOIN client c ON ( c.cl_no = se.cl_no )
+        <include refid="searchFrag"/>	
+        ORDER BY rel_no
+	</select>
+	
+	<select id="selectEmpSales" resultType="kr.or.ddit.vo.IncomeVO" parameterType="kr.or.ddit.vo.IncomeVO">
+
+		SELECT
+		    SUM(sales) sales,    month,    emp_name,    emp_id
+		FROM
+		    (
+		        SELECT DISTINCT
+		            ( TO_CHAR(rel_date,'yyyy-mm') ) AS month,
+		            ( so.sale_oprod_qty * so.sale_oprod_cost ) AS sales,
+		            s.sale_ord_emp_id AS emp_id,
+		            e.emp_name AS emp_name
+		        FROM
+		            release r
+		            INNER JOIN sale_ord s ON ( s.sale_ord_code = r.sale_ord_code )
+		            INNER JOIN sale_oprod so ON ( so.sale_ord_code = s.sale_ord_code )
+		            INNER JOIN employee e ON ( e.emp_id = s.sale_ord_emp_id )
+		    ) sumSale
+		<include refid="searchFrag"/>	    
+		GROUP BY
+		    month,    emp_name,    emp_id
+		ORDER BY
+		    month
+		
+		
+		
+	</select>
+	
+	
+	
+</mapper>

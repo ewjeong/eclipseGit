@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일        수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.13    정은우     최초작성               -->
+<!--  2019.05.31    정은우     견적서등록              -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+<mapper namespace="kr.or.ddit.purchasingTeam.estimateManage.dao.IEstimatePManageDAO">
+	<sql id="searchFrag">
+		<where>
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.pur_est_date)">
+					AND TO_CHAR(PUR_EST_DATE,'YYYY-MM-DD') = to_date(#{searchData.pur_est_date}, 'YYYY-MM-DD')
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_name)">
+				 	AND CL_NAME LIKE '%'||#{searchData.cl_name}||'%'
+				</if>
+			 </if>	
+		</where>	
+	</sql>
+	
+	<!-- 견적서페이징 -->
+	<select id = "selectPurEstimateCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(pur_est_no)
+		FROM PUR_EST_LIST
+		<include refid="searchFrag" />
+	</select>
+	
+	<!-- 견적서리스트 -->
+	<select id="selectPurEstimateList" resultType="kr.or.ddit.vo.Pur_Est_ListVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ESTLIST AS(
+	        SELECT DISTINCT TO_CHAR(PUR_EST_DATE,'YYYY-MM-DD') AS PUR_EST_DATE, 
+					   CL_NAME, CL_NO,
+					   PUR_EPROD_COST, PUR_EPROD_QTY,
+					   (PUR_EPROD_COST*PUR_EPROD_QTY) AS EST_COST,
+					   PUR_EST_NO
+			    FROM PUR_EST_LIST
+			    <include refid="searchFrag" />
+	            ORDER BY PUR_EST_DATE DESC, PUR_EST_NO DESC
+	        )
+        SELECT *
+        FROM (
+            SELECT ROWNUM RNUM, ESTLIST.*
+            FROM ESTLIST
+        ) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<!-- 모달창에 띄울 견적요청서리스트 가져올때 사용-->
+	<select id="selectErList" resultType="kr.or.ddit.vo.SelectPurErListVO"
+				parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT DISTINCT TO_CHAR(PUR_ER_DATE, 'YYYY-MM-DD') AS PUR_ER_DATE,
+						 PUR_ER_NO, CL_NAME
+		FROM PUR_ER_LIST
+        WHERE PUR_ER_NO NOT IN (SELECT PUR_ER_NO FROM PUR_EST)
+		ORDER BY PUR_ER_DATE DESC, PUR_ER_NO DESC
+	</select>
+	
+	<!-- 견적요청서번호를 선택해서 일치하는 정보 가져올때 사용-->
+	<select id="selectPurEr" resultMap="erMap" parameterType="String">
+		SELECT  PUR_ER_NO, CL_NO, CL_NAME, CL_TEL,
+				COM_NAME, COM_TEL, COM_ADD1, COM_ADD2,
+				PUR_ERPROD_QTY, PROD_SIZE, PROD_COLOR,
+				ITEM_NAME, PROD_NO, PROD_NAME
+		FROM PUR_ER_LIST
+		WHERE PUR_ER_NO = #{pur_er_no}
+	</select>
+	<resultMap type="kr.or.ddit.vo.Pur_Er_ListVO" id="erMap" autoMapping="true">
+		<id property="pur_er_no" column="PUR_ER_NO" />
+		<collection property="pur_er_prodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Pur_Er_ProdVO" />
+	</resultMap>
+	
+	<!-- 견적서상세조회 -->
+	<select id="selectEstOrder" resultMap="estMap" parameterType="String">
+		SELECT PUR_EST_NO, TO_CHAR(PUR_EST_DATE,'YYYY-MM-DD') AS PUR_EST_DATE,
+			   CL_NO, CL_NAME,CL_TEL,
+			   DECODE(PAYMENT, 0, '현금', '카드') AS PAYMENT,
+			   (PUR_EPROD_COST*PUR_EPROD_QTY) AS EST_COST,
+			   PROD_NO, PROD_NAME, PROD_COLOR, 
+			   PROD_SIZE, PUR_EPROD_QTY, PUR_EPROD_COST
+		FROM PUR_EST_LIST
+		WHERE PUR_EST_NO = #{pur_est_no}
+	</select>
+	<resultMap type="kr.or.ddit.vo.Pur_Est_ListVO" id="estMap" autoMapping="true">
+		<id property="pur_est_no" column="PUR_EST_NO" />
+		<collection property="pur_eprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Pur_Eprod_ListVO" />
+	</resultMap>
+	
+	<!-- 견적서등록 -->
+	<insert id="insertPurEstimate" parameterType="kr.or.ddit.vo.Pur_EstVO">
+		<selectKey resultType="Integer" keyProperty="pur_est_no" order="BEFORE">
+			SELECT SEQ_PUR_EST.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT ALL
+			INTO PUR_EST(
+				PUR_EST_NO, EST_EMP_ID,    
+			 	PUR_ER_NO, PUR_EST_DATE, PAYMENT 
+			) VALUES (
+				 #{pur_est_no}, #{est_emp_id},
+				 #{pur_er_no}, #{pur_est_date}, #{payment} 
+			)
+		<foreach collection="pur_eprodList" item="pur_eprod" index="idx">
+			INTO PUR_EPROD(
+				PUR_EPROD_NO, PUR_EST_NO, PUR_EPROD_QTY,
+				PUR_EPROD_COST, PROD_NO
+			)VALUES(
+				(
+					SELECT MAX(PUR_EPROD_NO) FROM PUR_EPROD
+				) + #{ idx } +1
+				, #{pur_est_no}, #{pur_eprod.pur_eprod_qty}
+				, #{pur_eprod.pur_eprod_cost}, #{pur_eprod.prod_no}
+			)
+		</foreach>	
+			SELECT * FROM DUAL
+	</insert>
+	
+	
+
+</mapper>

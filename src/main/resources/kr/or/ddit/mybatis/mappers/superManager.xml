@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.superManager.employeeManage.dao.IEmployeeManageDAO">
+
+	<sql id="searchFrag">
+		<where>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test='"dep_name".equals(searchType)'>
+						${searchType} LIKE '%'||#{searchWord}||'%'
+					</when>
+					<when test='"pos_name".equals(searchType)'>
+						${searchType} LIKE '%'||#{searchWord}||'%'
+					</when>
+					<when test='"emp_name".equals(searchType)'>
+	     				${searchType} LIKE '%'||#{searchWord}||'%'
+		     		</when>
+		     		<when test='"all".equals(searchType)'>
+		     			DEP_NAME LIKE '%'||#{searchWord}||'%' OR
+		     			POS_NAME LIKE '%'||#{searchWord}||'%' OR
+		     			EMP_NAME LIKE '%'||#{searchWord}||'%'
+		     		</when>
+				</choose>	
+			</if>
+		</where>
+	</sql>
+	
+	<select id="selectEmployeeCount"  resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT  count(e.emp_id)
+		FROM employee e
+		INNER JOIN department d on(d.dep_code=e.dep_code)    
+		INNER JOIN position p on(p.pos_code=e.pos_code)
+		<include refid="searchFrag"/>
+	</select>
+	
+	<select id="selectEmployeeList" resultType="kr.or.ddit.vo.empPosDepVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ORDEREDEMP AS(
+			SELECT
+			    e.emp_id,    d.dep_name,    p.pos_name,
+			    e.emp_pass,    e.emp_name,    e.emp_mail,
+			    e.emp_hp,    e.emp_add1,    e.emp_gene,
+			    e.emp_bir,    e.emp_manage,    e.emp_reg1,
+			    e.emp_reg2,    e.emp_zip,    e.emp_add2,
+			    e.emp_del,    e.emp_no,    e.com_no
+			FROM
+			    employee e
+			INNER JOIN department d on(d.dep_code=e.dep_code)    
+			INNER JOIN position p on(p.pos_code=e.pos_code)
+			<include refid="searchFrag"/>
+			ORDER BY e.emp_no DESC 
+		     ) 
+		     SELECT *
+		     FROM(
+			     SELECT ROWNUM RNUM,  ORDEREDEMP.*
+			     FROM  ORDEREDEMP
+		     )
+		     WHERE RNUM BETWEEN #{startRow} AND #{endRow}    
+	</select>
+	
+	<select id="selectEmployee" resultType="kr.or.ddit.vo.empPosDepVO" parameterType="string">
+		SELECT
+		    e.emp_id,    d.dep_name,    p.pos_name,
+		    e.emp_pass,    e.emp_name,    e.emp_mail,
+		    e.emp_hp,    e.emp_add1,    e.emp_gene,
+		    to_char(e.emp_bir,'yyyy-mm-dd') emp_bir,    e.emp_manage,    e.emp_reg1,
+		    e.emp_reg2,    e.emp_zip,    e.emp_add2,
+		    e.emp_del,    e.emp_no,    e.com_no,
+		    e.dep_code, e.pos_code
+		FROM
+		    employee e
+		INNER JOIN department d on(d.dep_code=e.dep_code)    
+		INNER JOIN position p on(p.pos_code=e.pos_code)
+		WHERE emp_no = #{emp_no}
+	</select>
+	
+	<update id="updateEmployee" parameterType="kr.or.ddit.vo.EmployeeVO">
+		UPDATE employee
+	    SET
+	        dep_code = #{dep_code}
+	        ,pos_code = #{pos_code}
+	        ,emp_del = #{emp_del}
+		WHERE
+		    emp_no = #{emp_no}
+	</update>
+	
+	
+	
+	
+</mapper>
+
+
+
+
+
+
+
+
+
+
+

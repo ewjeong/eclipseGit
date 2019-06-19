@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.IReferenceDAO">
+	<select id="selectReferenceCount" parameterType="kr.or.ddit.vo.PagingVO" resultType="long">
+		SELECT	COUNT(ELEC_NO)
+		FROM	REFERENCE_LIST
+		WHERE	EMP_ID = #{ emp_id }
+	</select>
+	
+	<resultMap type="kr.or.ddit.vo.ReferenceListVO" id="referenceMap" autoMapping="true">
+		<id column="ELEC_NO" property="elec_no" />
+		<association property="send" javaType="kr.or.ddit.vo.SendVO">
+			<id property="send_name" column="SEND_NAME" />
+		</association>
+	</resultMap>
+	<select id="selectReferenceList" parameterType="kr.or.ddit.vo.PagingVO" resultMap="referenceMap">
+		SELECT	
+		     ELEC_NO, EMP_ID, REF_VIEW, REF_VIEW_DATE
+		    , ELEC_WRITER, ELEC_FORM_CODE
+		    , ELEC_TITLE, ELEC_CONTENT, ELEC_SENDDATE
+		    , ELEC_COMPLE, SEND_TYPE_CODE
+		    , RL.SEND_CODE
+		    , SE.SEND_NAME
+		FROM	REFERENCE_LIST  RL
+		    INNER JOIN  SEND SE ON ( RL.SEND_CODE = SE.SEND_CODE)
+		WHERE   EMP_ID = #{ emp_id }
+	</select>
+	
+	<select id="selectReference" parameterType="kr.or.ddit.vo.ReferenceListVO" resultType="kr.or.ddit.vo.ReferenceListVO">
+		SELECT	
+			 ELEC_NO, EMP_ID, REF_VIEW, REF_VIEW_DATE
+		    , SEND_CODE, ELEC_WRITER, ELEC_FORM_CODE
+		    , ELEC_TITLE, ELEC_CONTENT, ELEC_SENDDATE
+		    , ELEC_COMPLE, SEND_TYPE_CODE
+		FROM	REFERENCE_LIST
+        WHERE   EMP_ID = #{ emp_id }
+        AND		ELEC_NO = #{ elec_no }	
+	</select>
+</mapper>

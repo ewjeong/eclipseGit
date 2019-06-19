@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.myPage.dao.IMypageDAO">
+
+	<select id="selectMypage" parameterType="string" resultType="kr.or.ddit.vo.empPosDepVO">
+		SELECT
+		    e.emp_id,    e.emp_pass,    e.emp_name,
+		    e.emp_mail,    e.emp_hp,    e.emp_add1,
+		    e.emp_gene,    to_char(e.emp_bir,'yyyy-mm-dd') emp_bir,    e.emp_manage,
+		    e.emp_reg1,    e.emp_reg2,    e.emp_zip,
+		    e.emp_add2,    e.emp_del
+		    ,p.pos_name
+		    ,d.dep_name
+		FROM
+		    employee e
+		INNER JOIN position p on e.pos_code = p.pos_code  
+		INNER JOIN department d on e.dep_code = d.dep_code  
+		WHERE e.emp_id=#{emp_id}
+	</select>
+	
+	<update id="updateMypage" parameterType="kr.or.ddit.vo.EmployeeVO">
+		UPDATE employee
+	    SET
+	        emp_pass=#{emp_pass}
+	        ,emp_mail=#{emp_mail}
+	        ,emp_hp=#{emp_hp}
+	        ,emp_zip=#{emp_zip}
+	        ,emp_add1=#{emp_add1}
+	        ,emp_add2=#{emp_add2}
+		WHERE
+		    emp_id = #{emp_id}
+	</update>
+</mapper>

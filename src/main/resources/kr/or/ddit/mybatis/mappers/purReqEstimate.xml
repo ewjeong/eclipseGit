@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일        수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.13    정은우     최초작성               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+<mapper namespace="kr.or.ddit.purchasingTeam.estimateManage.dao.IEstimatePReqManageDAO">
+	<sql id="clientSearchFrag">
+		<trim prefix="AND">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test="'cl_no'.equals(searchType)">
+						${searchType} = #{searchWord}
+					</when>
+					<when test="'cl_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'all'.equals(searchType)">
+						CL_NO = #{searchWord} OR
+						CL_NAME LIKE '%' || #{searchWord} || '%'
+					</when>
+				</choose>
+			</if>
+		</trim>
+	</sql>
+	<sql id="prodSearchFrag">
+		<where>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test="'prod_no'.equals(searchType)">
+						${searchType} = #{searchWord}
+					</when>
+					<when test="'prod_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'item_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'all'.equals(searchType)">
+						PROD_NAME LIKE '%' || #{searchWord} || '%' OR
+						ITEM_NAME LIKE '%' || #{searchWord} || '%' 
+					</when>
+				</choose>
+			</if>
+		</where>
+	</sql>
+	<sql id="searchFrag">
+	  <where>
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.pur_er_date)">
+					AND TO_CHAR(PUR_ER_DATE,'YYYY-MM-DD') = to_date(#{searchData.pur_er_date}, 'YYYY-MM-DD')
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_name)">
+				 	AND CL_NAME LIKE '%'||#{searchData.cl_name}||'%'
+				</if>
+			 </if>	
+		</where>
+	</sql>
+	
+	<!-- 견적요청서페이징 -->
+	<select id = "selectPurReqEstCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(pur_er_no)
+		FROM PUR_ER_LIST
+		<include refid="searchFrag" />
+	</select>
+	
+	<!-- 견적요청서리스트 -->
+	<select id="selectPurReqEstList" resultType="kr.or.ddit.vo.Pur_Er_ListVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH REQESTLIST AS(
+	        SELECT DISTINCT PUR_ER_NO, TO_CHAR(PUR_ER_DATE,'YYYY-MM-DD') AS PUR_ER_DATE, 
+				   CL_NAME, CL_NO
+			    FROM PUR_ER_LIST
+			    <include refid="searchFrag" />
+	            ORDER BY PUR_ER_DATE DESC
+	        )
+        SELECT *
+        FROM (
+            SELECT ROWNUM RNUM, REQESTLIST.*
+            FROM REQESTLIST
+        ) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<!-- 견적요청서상세조회 -->
+	<select id="selectReqEst" resultMap="ReqEstMap" parameterType="String">
+		SELECT PUR_ER_NO, TO_CHAR(PUR_ER_DATE,'YYYY-MM-DD') AS PUR_ER_DATE,
+			   CL_NO, CL_NAME, CL_TEL, 
+			   PROD_NO, PROD_NAME, PROD_COLOR, PROD_SIZE, 
+			   PUR_ERPROD_QTY,
+			   EMP_NAME
+		FROM PUR_ER_LIST
+		WHERE PUR_ER_NO = #{pur_er_no}
+	</select>
+	<resultMap type="kr.or.ddit.vo.Pur_Er_ListVO" id="ReqEstMap" autoMapping="true">
+		<id property="pur_er_no" column="PUR_ER_NO" />
+		<collection property="pur_er_prodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Pur_Er_ProdVO" />
+	</resultMap>
+	
+	<!-- 모달창을 통해 클라이언트 리스트 조회하기  -->
+	<select id="selectPurClientList" resultType="kr.or.ddit.vo.ClientVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ESTCLIENT AS(
+			SELECT DISTINCT CL_NO, CL_NAME, CL_CHARGER, CL_TEL
+		    FROM CLIENT
+		    WHERE CL_SORT= 0
+			<include refid="clientSearchFrag"/>
+		    ORDER BY CL_NO
+	    )
+		SELECT *
+		FROM(
+			SELECT ROWNUM RNUM, ESTCLIENT.*
+			FROM ESTCLIENT
+		)
+		WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<!-- 모달창에서 한건의 클라이언트 선택시 클라이언트 정보 상세조회 -->
+	<select id="selectPurClient" resultType="kr.or.ddit.vo.ClientVO" parameterType="string">
+		SELECT DISTINCT CL_NO, CL_NAME, CL_CHARGER
+		FROM CLIENT
+		WHERE CL_NO = #{cl_no}
+	</select>
+
+	<!-- 모달창을 통해 제품리스트 조회하기 --> 
+	<select id="selectPurProdList" resultType="kr.or.ddit.vo.ProductVO" parameterType="kr.or.ddit.vo.PagingVO">
+	WITH ESTPROD AS(
+		SELECT PROD_NO, ITEM_NAME, PROD_NAME, PROD_SIZE, PROD_COLOR
+	    FROM PRODUCT A
+	    INNER JOIN ITEM B ON(A.ITEM_CODE = B.ITEM_CODE)
+		<include refid="prodSearchFrag"/>
+	    ORDER BY PROD_NO DESC	
+    )
+	SELECT *
+	FROM(
+		SELECT ROWNUM RNUM, ESTPROD.*
+		FROM ESTPROD
+	)
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<!-- 모달창에서 한건의  제품 선택시 나타나는 제품 정보 상세조회 -->
+	<select id="selectPurProd" resultType="kr.or.ddit.vo.ProductVO" parameterType="int">
+	SELECT A.PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR, 
+			PROD_OUTLINE, B.PROD_COST, ITEM_NAME
+	FROM PRODUCT A
+	INNER JOIN WARE_AVG_COST B ON A.PROD_NO = B.PROD_NO
+    INNER JOIN ITEM C ON A.ITEM_CODE= C.ITEM_CODE
+	WHERE A.PROD_NO = #{prod_no}
+	</select>
+	
+	<!-- 페이징 처리를 위해 전체 클라이언트 레코드 카운트 --> 
+	<select id="selectPurClientCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+    SELECT COUNT(DISTINCT (CL_NO))
+	FROM CLIENT
+	WHERE 1=1
+	<include refid="clientSearchFrag"/>
+	</select>
+	
+	<!-- 페이징 처리를 위해 전체 제품 레코드 카운트  -->
+	<select id="selectPurProdCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+	SELECT COUNT(DISTINCT(PROD_NO))
+    FROM PRODUCT A
+    INNER JOIN ITEM B ON(A.ITEM_CODE = B.ITEM_CODE)
+	<include refid="prodSearchFrag"/>
+	</select>
+	
+	<!-- 견적서 등록작업 -->
+	<insert id="insertPurReqEstimate" parameterType="kr.or.ddit.vo.Pur_ErVO">
+		<selectKey keyProperty="pur_er_no" resultType="Integer" order="BEFORE">
+			SELECT SEQ_PUR_ER.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT ALL
+		INTO PUR_ER(PUR_ER_NO, PUR_ER_DATE, CL_NO, REQ_EMP_ID)
+		VALUES(
+			#{pur_er_no}, #{pur_er_date}, #{cl_no}, #{req_emp_id}
+		)
+		<foreach collection="pur_er_prodList" item="pur_er_prod" index="idx">
+		INTO PUR_ER_PROD(PUR_ER_PROD_NO, PUR_ER_NO, PROD_NO, PUR_ERPROD_QTY)
+		VALUES(
+			(
+				SELECT MAX(PUR_ER_PROD_NO) FROM PUR_ER_PROD
+			)+ #{idx} + 1
+			, #{pur_er_no}, #{pur_er_prod.prod_no}, #{pur_er_prod.pur_erprod_qty}
+		)
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	
+	
+
+</mapper>

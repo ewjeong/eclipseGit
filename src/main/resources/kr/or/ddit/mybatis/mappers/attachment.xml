@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.IAttachmentDAO">
+	<insert id="insertAllAttachment" parameterType="kr.or.ddit.vo.Elec_ApprovalVO">
+		<selectKey keyProperty="attach_no" resultType="int" order="BEFORE">
+			SELECT NVL(MAX(ATTACH_NO), 0) + 1 FROM ATTACHMENT
+		</selectKey>
+		INSERT ALL
+		<foreach collection="fileList" item="attach" index="idx">
+			INTO ATTACHMENT (
+				ATTACH_NO, ELEC_NO, ATTACH_ORGNAME
+				, ATTACH_PATH, ATTACH_SIZE
+				, ATTACH_FANCYSIZE, ATTACH_MIME
+			) VALUES (
+				#{ attach_no } + #{idx}, #{ elec_no }, #{ attach.attach_orgname }
+				, #{ attach.attach_path }, #{ attach.attach_size }
+				, #{ attach.attach_fancysize }, #{ attach.attach_mime }
+			)
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	
+	<select id="selectAttachment" parameterType="int" resultType="kr.or.ddit.vo.AttachmentVO"> 
+		SELECT 	
+			ATTACH_NO, ELEC_NO, ATTACH_ORGNAME
+			, ATTACH_PATH, ATTACH_SIZE
+			, ATTACH_FANCYSIZE, ATTACH_MIME
+		FROM	ATTACHMENT
+		WHERE	ATTACH_NO = #{ attach_no }
+	</select>
+	
+	<delete id="deleteAttachmentAll" parameterType="kr.or.ddit.vo.Elec_ApprovalVO">
+		DELETE	FROM	ATTACHMENT
+		WHERE	ATTACH_NO IN
+		<foreach collection="deleteFileNos" item="deleteFileNo" open="(" close=")" separator=",">
+			#{ deleteFileNo }
+		</foreach>
+	</delete>
+	
+	<!-- 실제 파일을 지우기 위한.. -->
+	<select id="selectAttachmentList" parameterType="kr.or.ddit.vo.Elec_ApprovalVO" resultType="kr.or.ddit.vo.AttachmentVO">
+		SELECT	ATTACH_NO, ATTACH_PATH
+		FROM	ATTACHMENT
+		WHERE	ATTACH_NO IN
+		<foreach collection="deleteFileNos" item="deleteFileNo" open="(" close=")" separator=",">
+			#{ deleteFileNo }
+		</foreach>
+	</select>
+</mapper>

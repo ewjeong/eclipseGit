@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.salesProfitManage.dao.ISalesProfitManageDAO">
+
+	<sql id="searchFlag">
+		<where>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test='"item_name".equals(searchType)'>
+						${searchType}  LIKE '%' || #{searchWord}||'%'
+					</when>
+					<when test='"prod_name".equals(searchType)'>
+						${searchType}  LIKE '%' || #{searchWord}||'%'
+					</when>
+					<when test='"cl_name".equals(searchType)'>
+						${searchType}  LIKE '%' || #{searchWord}||'%'
+					</when>
+					<when test='"all".equals(searchType)'>
+						ITEM_NAME LIKE '%'||#{searchWord}||'%' OR
+						PROD_NAME LIKE '%'||#{searchWord}||'%' OR
+						CL_NAME LIKE '%'||#{searchWord}||'%' 
+					</when>
+				</choose>
+			</if>
+		</where>
+	</sql>
+
+
+
+	<select id="selectSalesProfitList" resultType="kr.or.ddit.vo.SalesProfitVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ORDEREDSALESPROFIT AS(
+		SELECT
+		     REL_NO, to_char(REL_DATE, 'YYYY-MM-DD') REL_DATE,ITEM_NAME,PROD_NAME, CL_NO, CL_NAME, SALE_OPROD_QTY, SALE_OPROD_COST
+		FROM
+		    INPUTPROFITLIST
+		<include refid="searchFlag"/>
+        ORDER BY REL_DATE DESC    
+		
+		)
+		SELECT *
+		FROM(
+			SELECT ROWNUM RNUM, ORDEREDSALESPROFIT.*
+			FROM ORDEREDSALESPROFIT
+		)A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<select id="selectsalesProfitCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT
+			count(rel_no)
+		FROM INPUTPROFITLIST
+		<include refid="searchFlag" />	
+	</select>
+	
+	<select id="selectSalesProfitExcelList" resultType="kr.or.ddit.vo.SalesProfitVO" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT
+		     REL_NO, to_char(REL_DATE, 'YYYY-MM-DD') REL_DATE,ITEM_NAME,PROD_NAME, CL_NO, CL_NAME, SALE_OPROD_QTY, SALE_OPROD_COST
+		FROM
+		    INPUTPROFITLIST
+		<include refid="searchFlag"/>
+        ORDER BY REL_DATE DESC   
+	</select>
+	
+	<select id="selectEmployeeProfitList" resultType="kr.or.ddit.vo.SalesProfitVO">
+		SELECT SUM(SOC) AS SOC, REL_DATE, EMP_NAME
+		FROM 
+			(	SELECT SALE_OPROD_QTY * SALE_OPROD_COST SOC, TO_CHAR(REL_DATE, 'YYYY-MM') AS REL_DATE , EMP_NAME
+				FROM INPUTPROFITLIST 
+			) TS
+	       
+		GROUP BY REL_DATE, EMP_NAME
+		ORDER BY REL_DATE
+	</select>
+	
+	<select id="selectProfitMonth" resultType="kr.or.ddit.vo.SalesProfitVO">
+		SELECT DISTINCT TO_CHAR(REL_DATE, 'YYYY-MM') AS REL_DATE FROM INPUTPROFITLIST ORDER BY REL_DATE
+	</select>
+	
+	<select id="selectProfitEmployee" resultType="kr.or.ddit.vo.SalesProfitVO">
+		SELECT DISTINCT EMP_NAME FROM INPUTPROFITLIST 
+	</select>
+	
+	<select id="selectPureProfit" resultType="kr.or.ddit.vo.SalesProfitVO">
+		SELECT SOC, POC
+		FROM INPUTPROFIT INNER JOIN OUTPUTPROFIT ON REL_DATE = WARE_DATE
+	</select>
+	<select id="selectMonthProfit" resultType="kr.or.ddit.vo.SalesProfitVO">
+		SELECT SOC, REL_DATE FROM INPUTPROFIT ORDER BY REL_DATE
+	</select>
+
+</mapper>

@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.salesTeam.orderManage.dao.IOrderSManageDAO">
+	
+	<sql id="searchFrag">
+		<where>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test="'sale_ord_code'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} ||'%'
+					</when>
+					<when test="'cl_charger'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} ||'%'
+					</when>
+					<when test="'prod_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} ||'%'
+					</when>
+					<when test="'all'.equals(searchType)">
+						SALE_ORD_CODE LIKE '%' || #{searchWord} ||'%' OR
+						CL_CHARGER LIKE '%' || #{searchWord} ||'%' OR
+						PROD_NAME LIKE '%' || #{searchWord} ||'%'
+					</when>
+				</choose>
+			</if>
+		</where>
+	</sql>
+	
+	<!-- 주문 개수  -->
+	<select id="selectSalesOrderCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(SALE_ORD_CODE)
+		FROM SALE_ORD_LIST
+		<include refid="searchFrag"/>
+	</select>
+	
+	<!-- 주문 리스트 조회 -->
+	<select id="selectSalesOrderList" resultType="kr.or.ddit.vo.Sale_Ord_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+          WITH ORDERDORDERLIST AS(
+	    		SELECT DISTINCT SALE_ORD_CODE 
+					,SALE_ORD_DATE
+				    ,CL_CHARGER
+				    ,CL_RECEIVE
+				    ,EMP_NAME
+				,(CASE WHEN ELEC_COMPLE = 'Y' THEN '결재승인'
+					WHEN ELEC_COMPLE = 'N' THEN '결재대기'
+					ELSE '미결재' END) AS ELEC_COMPLE
+				FROM SALE_ORD_LIST
+			<include refid="searchFrag" />
+			 ORDER BY SALE_ORD_DATE DESC
+	    )
+	    SELECT *
+	    FROM (
+	    	SELECT ROWNUM RNUM, ORDERDORDERLIST.*
+	    	FROM ORDERDORDERLIST
+	    ) A
+			WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+        
+	</select>
+	
+	<!-- 6개월치 단가를 구하기 위한 resultMap -->
+	<resultMap type="kr.or.ddit.vo.Sale_Ord_ListVO" id="sixcost" autoMapping="true">
+		<id property="sale_ord_code" column="SALE_ORD_CODE" />
+		<association property="ware_avg_cost" javaType="kr.or.ddit.vo.Ware_Avg_CostVO" autoMapping="true" />
+	</resultMap> 
+	
+	<!-- 주문상세 조회  -->
+	<resultMap type="kr.or.ddit.vo.Sale_Ord_ListVO" id="salelist" autoMapping="true">
+		<id property="sale_ord_code" column="SALE_ORD_CODE"/>
+		<collection property="sale_oprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Sale_OprodVO"/>
+	</resultMap>
+	<select id="selectSalesOrder" resultMap="salelist" parameterType="string">
+		SELECT DISTINCT SALE_ORD_DATE
+		    ,SALE_ORD_CODE
+		    ,CL_CHARGER
+		    ,CL_TEL
+		    ,CL_RECEIVE
+		    ,PAYMENT
+		    ,CL_NO
+		    ,CL_NAME
+		    ,SALE_ORD_NOTE
+		    ,B.PROD_COST
+		    ,CL_ADD1
+		    ,CL_ADD2
+		    ,EMP_NAME
+		    ,A.PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR, SALE_OPROD_COST, SALE_OPROD_QTY, SALE_OPROD_NO
+		    ,TOTAL_COST
+		    ,(CASE WHEN ELEC_COMPLE = 'Y' THEN '결재승인'
+		      WHEN ELEC_COMPLE = 'N' THEN '결재대기'
+		      ELSE '미결재' END) AS ELEC_COMPLE
+		FROM SALE_ORD_LIST A
+		INNER JOIN WARE_AVG_COST B ON A.PROD_NO = B.PROD_NO
+		WHERE SALE_ORD_CODE = #{sale_ord_code}
+	</select>
+	
+	
+
+	
+	<!-- 한 건의 견적서 내용 조회  -->
+	<select id="selectSalesEst" resultMap="estMap" parameterType="int">
+    SELECT SALE_EST_NO 
+        ,SALE_EST_DATE
+        ,SALE_DETAIL
+        ,CL_CHARGER
+        ,CL_NAME
+        ,CL_TEL 
+        ,CL_RECEIVE 
+        ,CL_ADD1 
+        ,CL_ADD2 
+        ,PROD_NO, PROD_NAME, PROD_SIZE, SALE_EPROD_COST, SALE_EPROD_QTY
+    FROM SALE_EST_LIST
+    WHERE CL_SORT = 1
+    AND SALE_EST_NO = #{sale_est_no}
+		</select>
+	
+	<!-- 견적서에서 주문등록 버튼을 눌렀을 때, 하나의 견적서에 대한 여러개의 상품 조회 -->
+	<resultMap type="kr.or.ddit.vo.Sale_Est_ListVO" id="estMap" autoMapping="true">
+		<id property="sale_est_no" column="SALE_EST_NO" />
+		<collection property="sale_eprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Sale_Eprod_ListVO"/>
+	</resultMap>
+	
+	
+	
+	<!-- 주문 등록  -->
+	<insert id="insertSalesOrder" parameterType="kr.or.ddit.vo.Sale_OrdVO">
+		<selectKey keyProperty="sale_ord_code" resultType="string" order="BEFORE">
+		SELECT 'SO_'||RPAD('0', 3, MAX(SUBSTR(SALE_ORD_CODE, 4, 6)+1)) SALE_ORD_CODE 
+		FROM SALE_ORD
+		</selectKey>
+		INSERT ALL
+			INTO SALE_ORD(
+				SALE_ORD_CODE, SALE_EST_NO, SALE_ORD_EMP_ID, SALE_ORD_DATE, SALE_ORD_NOTE, PAYMENT, TOTAL_COST
+			) VALUES(
+				#{sale_ord_code},  #{sale_est_no}, #{sale_ord_emp_id}, SYSDATE, #{sale_ord_note} , #{payment}, #{total_cost}
+			)
+		<foreach collection="sale_oprodList" item="sale_oprod" index="idx">
+
+		INTO SALE_OPROD(
+		 	SALE_OPROD_NO, SALE_ORD_CODE, SALE_OPROD_QTY, SALE_OPROD_COST, PROD_NO
+		 ) VALUES(
+		 	(
+		 		SELECT MAX(SALE_OPROD_NO) FROM SALE_OPROD
+		 	) + #{ idx } +1 
+		 	, #{sale_ord_code}, #{sale_oprod.sale_oprod_qty}, #{sale_oprod.sale_oprod_cost}, #{sale_oprod.prod_no}
+		 )
+		</foreach>
+		SELECT * FROM DUAL
+	</insert>
+	
+	<!--견적서가 주문처리가 되었을 경우 처리 -->
+	<update id="updateOrdCompl" parameterType="int">
+		UPDATE SALE_EST
+	    SET ORD_COMPL = 1
+	    WHERE  SALE_EST_NO = #{sale_est_no}
+	</update>
+	
+	<!-- 모달창에 띄울 견적서리스트 가져올때 사용-->
+	<select id="selectEstList" resultType="kr.or.ddit.vo.Sale_Est_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+    SELECT DISTINCT TO_CHAR(SALE_EST_DATE, 'YYYY-MM-DD') AS SALE_EST_DATE,
+        SALE_EST_NO, EMP_NAME, CL_NAME
+	FROM SALE_EST_LIST 
+    WHERE ORD_COMPL = 0
+	ORDER BY SALE_EST_DATE
+	</select>
+	
+	
+	<!-- 주문 수정  -->
+	<update id="updateSalesOrder" parameterType="kr.or.ddit.vo.Sale_OrdVO">
+	UPDATE SALE_ORD
+	SET SALE_ORD_EMP_ID = #{sale_ord_emp_id}
+	    ,SALE_ORD_DATE = SYSDATE
+	    ,SALE_ORD_NOTE = #{sale_ord_note}
+	    ,PAYMENT = #{payment}
+	WHERE SALE_ORD_CODE = #{sale_ord_code}
+	</update>
+	
+	<!-- 주문에 대한 상품 수정  -->
+	<update id="updateSaleOprod" parameterType="kr.or.ddit.vo.Sale_OprodVO">
+	UPDATE SALE_OPROD
+	SET SALE_OPROD_QTY = #{sale_oprod_qty}
+	    ,SALE_OPROD_COST = #{sale_oprod_cost}
+	WHERE SALE_OPROD_NO = #{sale_oprod_no}
+	</update>
+	
+	<select id="selectSalesOrdExcelList" resultType="kr.or.ddit.vo.Sale_Ord_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+	SELECT DISTINCT SALE_ORD_CODE 
+			,SALE_ORD_DATE
+		    ,CL_CHARGER
+		    ,CL_RECEIVE
+		    ,PROD_NAME
+		    ,SALE_OPROD_QTY
+		FROM SALE_ORD_LIST
+	<include refid="searchFrag" />
+	 ORDER BY SALE_ORD_DATE DESC
+	</select>
+	
+</mapper>

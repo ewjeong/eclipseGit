@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE tiles-definitions PUBLIC "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN" "http://tiles.apache.org/dtds/tiles-config_3_0.dtd" >
+<tiles-definitions>
+<!-- definition name == logical view name -->
+  <definition name="parent" template="/WEB-INF/tiles/template.jsp">
+  	<put-attribute name="preScript" value="/includee/preScript.jsp"></put-attribute>
+    <put-attribute name="header" value="/includee/header.jsp"></put-attribute>
+	<put-attribute name="leftSideBar" value="/includee/leftSideBar.jsp"></put-attribute>
+    <put-attribute name="rightSideBar" value="/includee/rightSideBar.jsp"></put-attribute>
+    <put-attribute name="postScript" value="/includee/postScript.jsp"></put-attribute>
+  </definition>
+    
+<!-- 		<definition name="member/*" extends="parent" preparer="memberViewPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/member/{1}.jsp"></put-attribute>
+		</definition> --> 
+		
+		<!-- 어떤거 쓸지 예시 -->
+		<definition name="ex/*" extends="parent">
+			<put-attribute name="body" value="/WEB-INF/views/ex/{1}.jsp"></put-attribute>
+		</definition>
+		
+		<!-- 메인  --> 
+		<definition name="main/*" extends="parent">
+			<put-attribute name="body" value="/WEB-INF/views/main/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 전자결재 -->
+		<definition name="elec/approval/*" extends="parent" preparer="elecPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/elec/approval/{1}.jsp"></put-attribute>
+		</definition>
+		<definition name="elec/forms/*" extends="parent" preparer="elecPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/elec/forms/{1}.jsp"></put-attribute>
+		</definition>
+		<definition name="elec/line/*" extends="parent" preparer="elecPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/elec/line/{1}.jsp"></put-attribute>
+		</definition>
+		<definition name="elec/reference/*" extends="parent" preparer="elecPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/elec/reference/{1}.jsp"></put-attribute>
+		</definition>
+		<definition name="elec/sangshin/*" extends="parent" preparer="elecPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/elec/sangshin/{1}.jsp"></put-attribute>
+		</definition>
+		
+		<!-- 마이페이지  -->
+		<definition name="mypage/*" extends="parent" preparer="mypagePreparer">
+			<put-attribute name="body" value="/WEB-INF/views/mypage/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		
+		<!-- 영업팀 거래처관리  -->
+		<!-- preparer 앞이 소문자인 이유는  coc이기 때문 -->
+		<definition name="sales/buyer/*" extends="parent" preparer="buyerSPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/sales/buyer/{1}.jsp"></put-attribute>
+		</definition>
+		
+		<!-- 영업팀 견적관리  -->
+		<definition name="sales/estimate/*" extends="parent" preparer="estimateSPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/sales/estimate/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 영업팀 주문관리  -->
+		<definition name="sales/order/*" extends="parent" preparer="orderSPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/sales/order/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 영업팀 활동관리  -->
+		<definition name="sales/schedule/*" extends="parent" preparer="scheduleSPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/sales/schedule/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 영업팀 상품제안  -->
+		<definition name="sales/*" extends="parent" preparer="orderSPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/sales/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		
+		<!-- 구매팀 거래처관리  -->
+		<definition name="purchase/buyer/*" extends="parent" preparer="buyerPPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/purchase/buyer/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 구매팀 견적관리 -->
+		<definition name="purchase/estimate/*" extends="parent" preparer="estimatePPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/purchase/estimate/{1}.jsp"></put-attribute>
+		</definition> 
+
+		<!-- 구매팀 품목관리  -->
+		<definition name="purchase/item/*" extends="parent" preparer="itemPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/purchase/item/{1}.jsp"></put-attribute>
+		</definition> 
+
+		<!-- 구매팀 발주관리 -->
+		<definition name="purchase/order/*" extends="parent" preparer="orderPPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/purchase/order/{1}.jsp"></put-attribute>
+		</definition> 
+
+		<!-- 구매팀 재고관리 -->
+		<definition name="purchase/stock/*" extends="parent" preparer="stockPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/purchase/stock/{1}.jsp"></put-attribute>
+		</definition> 
+
+		<!-- 구매팀 영업팀의 주문서 조회 -->
+		<definition name="purchase/*" extends="parent" preparer="orderSheetPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/purchase/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 매출 리스트 조회 -->
+		<definition name="salesProfit/*" extends="parent" preparer="salesProfitPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/salesProfit/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 환경설정 -->
+		<definition name="settingUp/*" extends="parent"  preparer="settingPreparer">
+			<put-attribute name="body" value="/WEB-INF/views/settingUp/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		<!-- 수퍼매니저 사원관리   -->
+		<definition name="superManager/memberManage/*" extends="parent" preparer="employeePreparer">
+			<put-attribute name="body" value="/WEB-INF/views/superManager/memberManage/{1}.jsp"></put-attribute>
+			<put-attribute name="body" value="/WEB-INF/views/superManager/salesSchedule/performanceList.jsp"></put-attribute>
+		</definition> 
+		
+		
+		<definition name="superManager/salesSchedule/*" extends="parent" preparer="emplSchePreparer">
+			<put-attribute name="body" value="/WEB-INF/views/superManager/salesSchedule/scheduleList.jsp"></put-attribute>
+		</definition> 
+		
+		<definition name="superManager/employeeManage/emplScheduleManage/*" extends="parent" preparer="employeePreparer">
+			<put-attribute name="body" value="/WEB-INF/views/superManager/salesSchedule/performanceList.jsp"></put-attribute>
+		</definition> 
+		<!-- 채팅 -->
+<!-- 		<definition name="chatting/*" extends="parent"  > -->
+<!-- 			<put-attribute name="body" value="/WEB-INF/views/chatting/{1}.jsp"></put-attribute> -->
+<!-- 		</definition>  -->
+		
+		<!-- 메일 -->
+		<definition name="mail/*" extends="parent"  preparer="mailPreparer" >
+			<put-attribute name="body" value="/WEB-INF/views/mail/{1}.jsp"></put-attribute>
+		</definition> 
+		
+		
+	
+</tiles-definitions>

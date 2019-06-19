@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.ISeungBanJeanDaeDAO">
+	<!--  -->
+	<update id="updateLineToApproval" parameterType="map">
+		UPDATE 	ELEC_APPRLINE
+		SET 	APPR_STATUS_CODE = 'AS001'
+		WHERE   ELEC_NO = #{ elec_no }
+		AND     ( AUTHORIZED_ID = #{authorized_id} OR INSTEAD_ID = #{authorized_id}   ) 
+	</update>
+	
+	<select id="selectLineByNoAndAuthorizer" parameterType="map" resultType="kr.or.ddit.vo.Elec_ApprlineVO">
+		SELECT  ELEC_APPRLINE_CODE, ELEC_PRIORITY, OWNER_ID
+		FROM    ELEC_APPRLINE
+		WHERE   ELEC_NO = #{ elec_no }
+		AND     ( AUTHORIZED_ID = #{authorized_id} OR INSTEAD_ID = #{authorized_id} )
+	</select>
+	
+	<select id="selectMaxPriority" parameterType="int" resultType="int">
+		SELECT  MAX( ELEC_PRIORITY )
+	    FROM    ELEC_APPRLINE
+	    WHERE     ELEC_NO = #{ elec_no }
+	</select>
+	
+	<update id="updateLineToJeonGyeol" parameterType="map">
+		UPDATE	ELEC_APPRLINE
+		SET		APPR_STATUS_CODE = 'AS004'
+		WHERE	ELEC_NO = #{ elec_no }
+		AND     ( AUTHORIZED_ID = #{authorized_id} OR INSTEAD_ID = #{authorized_id} )
+	</update>
+	
+	<update id="updateLineToInstead" parameterType="map">
+		UPDATE	ELEC_APPRLINE
+		SET		INSTEAD_ID = #{ instead_id }
+		WHERE	ELEC_NO = #{ elec_no }
+		AND		INSTEAD_ID IS NULL
+		AND		AUTHORIZED_ID = #{ authorized_id }
+	</update>
+	
+	<update id="updateLineToReject" parameterType="map">
+		UPDATE	ELEC_APPRLINE
+		SET		APPR_STATUS_CODE = 'AS002'
+				, ELEC_REJECT_REASON = #{ elec_reject_reason }
+		WHERE	ELEC_NO = #{ elec_no }
+		AND     ( AUTHORIZED_ID = #{authorized_id} OR INSTEAD_ID = #{authorized_id} )
+	</update>
+</mapper>
+
+
+
+
+
+
+
+
+
+

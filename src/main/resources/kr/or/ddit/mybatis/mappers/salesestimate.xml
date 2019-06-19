@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.salesTeam.estimateManage.dao.IEstimateSManageDAO">
+
+	<sql id="clientSearchFrag">
+		<trim prefix="AND">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test="'cl_no'.equals(searchType)">
+						${searchType} = #{searchWord}
+					</when>
+					<when test="'cl_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'all'.equals(searchType)">
+						CL_NO = #{searchWord} OR
+						CL_NAME LIKE '%' || #{searchWord} || '%'
+					</when>
+				</choose>
+			</if>
+		</trim>
+	</sql>
+	<sql id="prodSearchFrag">
+		<where>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test="'prod_no'.equals(searchType)">
+						${searchType} = #{searchWord}
+					</when>
+					<when test="'prod_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'item_name'.equals(searchType)">
+						${searchType} LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="'all'.equals(searchType)">
+						PROD_NAME LIKE '%' || #{searchWord} || '%' OR
+						ITEM_NAME LIKE '%' || #{searchWord} || '%' 
+					</when>
+				</choose>
+			</if>
+		</where>
+	</sql>
+
+	<sql id="searchFrag">
+		<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)"/>
+		<where>
+			<choose>
+				<when test="'emp_name'.equals(searchType)">
+					${searchType} LIKE '%' || #{searchWord} || '%'
+				</when>
+				<when test="'cl_name'.equals(searchType)">
+					${searchType} LIKE '%' || #{searchWord} || '%'
+				</when>
+				<when test="'prod_name'.equals(searchType)">
+					${searchType} LIKE '%' || #{searchWord} || '%'
+				</when>
+				<when test="'all'.equals(searchType)">
+					EMP_NAME LIKE '%' || #{searchWord} || '%' OR
+					CL_NAME LIKE '%' || #{searchWord} || '%' OR
+					PROD_NAME LIKE '%' || #{searchWord} || '%' 
+				</when>
+			</choose>
+		</where>
+	</sql>
+
+
+	<!-- 견적서 리스트 조회 -->
+	<select id="selectSalesEstimateList" resultType="kr.or.ddit.vo.Sale_Est_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+    WITH ESTORDEREDLIST AS(
+    	SELECT DISTINCT SALE_EST_DATE
+			,SALE_EST_NO, ORD_COMPL, EMP_NAME
+		    ,CL_NAME, CL_NO
+	    FROM SALE_EST_LIST
+    	<include refid="searchFrag" />
+	    ORDER BY SALE_EST_NO DESC
+    )SELECT *
+    FROM (
+    	SELECT ROWNUM RNUM, ESTORDEREDLIST.*
+    	FROM ESTORDEREDLIST
+    ) A
+    WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+    
+	</select>
+	
+	<select id="selectSalesEstimateCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+	SELECT COUNT(SALE_EST_NO)
+	FROM SALE_EST_LIST
+	<include refid="searchFrag"/>
+	</select>
+	
+	
+	<!-- 6개월치 단가를 구하기 위한 resultMap -->
+		
+	
+	<!-- 하나의 견적서 번호에 해당하는 견적서 상세 조회 -->
+	<!-- 예를 들어 1:N관계에서 세건의 상품 정보(N)가 있다는 가정하에, 동일한 고객이나 견적서에 대한 정보라면
+			동일한 정보(1)들은 id property 값을 지정해주어야 값을 jsp상에 부를수 있음... 
+			그러나 만약 authoMapping 설정을 한다면 밑에처럼 굳이 저렇게 값을 안줘도 된다... -->
+	<resultMap type="kr.or.ddit.vo.Sale_Est_ListVO" id="estimate" autoMapping="true">
+		<id property="sale_est_no" column="SALE_EST_NO"/>		
+<!-- 		<id property="sale_est_date" column="SALE_EST_DATE"/>		 -->
+<!-- 		<id property="cl_no" column="CL_NO"/>		 -->
+<!-- 		<id property="cl_name" column="CL_NAME"/>		 -->
+<!-- 		<id property="cl_charger" column="CL_CHARGER"/>		 -->
+<!-- 		<id property="cl_tel" column="CL_TEL"/>		 -->
+<!-- 		<id property="emp_id" column="EMP_ID"/>	 -->
+<!-- 		<id property="emp_name" column="EMP_NAME"/> -->
+<!-- 		<id property="sale_detail" column="SALE_DETAIL"/>	 -->
+		<association property="ware_avg_cost" javaType="kr.or.ddit.vo.Ware_Avg_CostVO" autoMapping="true" />
+		<collection property="sale_eprodList" autoMapping="true" ofType="kr.or.ddit.vo.Sale_Eprod_ListVO"/>
+	</resultMap>
+	<select id="selectSalesEstimate" resultMap="estimate" parameterType="int">
+	SELECT SALE_EST_NO
+        ,SALE_EST_DATE
+        ,CL_NO
+        ,CL_NAME
+        ,CL_CHARGER
+        ,CL_TEL
+        ,EMP_ID
+        ,EMP_NAME
+        ,A.PROD_NO
+        ,PROD_NAME
+        ,PROD_COLOR
+        ,PROD_SIZE
+        ,SALE_EPROD_QTY
+        ,SALE_EPROD_COST
+        ,PROD_OUTLINE
+        ,SALE_DETAIL
+        ,B.PROD_COST
+        ,ITEM_NAME
+    FROM SALE_EST_LIST A
+    INNER JOIN WARE_AVG_COST B ON(A.PROD_NO = B.PROD_NO)
+    WHERE SALE_EST_NO = #{value}
+    ORDER BY SALE_EST_NO DESC
+	</select> 
+
+
+	<!-- 모달창을 통해 클라이언트 리스트 조회하기  -->
+	<select id="selectSalesClientList" resultType="kr.or.ddit.vo.ClientVO" parameterType="kr.or.ddit.vo.PagingVO">
+	WITH ESTCLIENT AS(
+		SELECT DISTINCT CL_NO, CL_NAME, CL_CHARGER, CL_TEL
+	    FROM CLIENT
+	    WHERE CL_SORT= 1
+		<include refid="clientSearchFrag"/>
+	    ORDER BY CL_NO
+    )
+	SELECT *
+	FROM(
+		SELECT ROWNUM RNUM, ESTCLIENT.*
+		FROM ESTCLIENT
+	)
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+    
+	</select>
+	
+	<!-- 모달창에서 한건의 클라이언트 선택시 클라이언트 정보 상세조회 -->
+	<select id="selectSalesClient" resultType="kr.or.ddit.vo.ClientVO" parameterType="string">
+	SELECT DISTINCT CL_NO, CL_NAME, CL_CHARGER
+	FROM CLIENT
+	WHERE CL_NO = #{cl_no}
+	</select>
+
+
+
+	<!-- 모달창을 통해 제품리스트 조회하기 --> 
+	<select id="selectSalesProdList" resultType="kr.or.ddit.vo.ProductVO" parameterType="kr.or.ddit.vo.PagingVO">
+	WITH ESTPROD AS(
+		SELECT PROD_NO, ITEM_NAME, PROD_NAME, PROD_SIZE, PROD_COLOR
+	    FROM PRODUCT A
+	    INNER JOIN ITEM B ON(A.ITEM_CODE = B.ITEM_CODE)
+		<include refid="prodSearchFrag"/>
+	    ORDER BY PROD_NO DESC	
+    )
+	SELECT *
+	FROM(
+		SELECT ROWNUM RNUM, ESTPROD.*
+		FROM ESTPROD
+	)
+	WHERE RNUM BETWEEN #{startRow} AND #{endRow}
+	</select>
+	
+	<!-- 모달창에서 한건의  제품 선택시 나타나는 제품 정보 상세조회 -->
+	<select id="selectSalesProd" resultType="kr.or.ddit.vo.ProductVO" parameterType="int">
+	SELECT A.PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR, PROD_OUTLINE, B.PROD_COST
+			,ITEM_NAME
+	FROM PRODUCT A
+	INNER JOIN WARE_AVG_COST B ON A.PROD_NO = B.PROD_NO
+    INNER JOIN ITEM C ON A.ITEM_CODE= C.ITEM_CODE
+	WHERE A.PROD_NO = #{prod_no}
+	</select>
+	
+	<!-- 페이징 처리를 위해 전체 클라이언트 레코드 카운트 --> 
+	<select id="selectClientCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+    SELECT COUNT(DISTINCT (CL_NO))
+	FROM CLIENT
+	WHERE 1=1
+	<include refid="clientSearchFrag"/>
+	</select>
+	
+	<!-- 페이징 처리를 위해 전체 제품 레코드 카운트  -->
+	<select id="selectProdCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+	SELECT COUNT(PROD_NO)
+    FROM PRODUCT A
+    INNER JOIN ITEM B ON(A.ITEM_CODE = B.ITEM_CODE)
+	<include refid="prodSearchFrag"/>
+	</select>
+	
+	<!-- 견적서 등록작업 -->
+<insert id="insertSalesEstimate" parameterType="kr.or.ddit.vo.Sale_EstVO">
+	<selectKey keyProperty="sale_est_no" resultType="int" order="BEFORE">
+	SELECT MAX(SALE_EST_NO)+1 FROM SALE_EST
+	</selectKey>
+	INSERT ALL
+	INTO SALE_EST(SALE_EST_NO, SALE_EST_DATE, SALE_DETAIL, CL_NO, EMP_ID, ORD_COMPL)
+	VALUES(#{sale_est_no}, SYSDATE, #{sale_detail}, #{cl_no}, #{emp_id}, 0)
+	
+	<foreach collection="sale_eprodList" item="sale_eprod" index="idx">
+	INTO SALE_EPROD(SALE_EPROD_NO, SALE_EST_NO, PROD_NO, SALE_EPROD_QTY, SALE_EPROD_COST)
+	VALUES(
+		(
+			SELECT MAX(SALE_EPROD_NO) FROM SALE_EPROD
+		)+ #{idx} + 1	
+		, #{sale_est_no}, #{sale_eprod.prod_no}, #{sale_eprod.sale_eprod_qty}, #{sale_eprod.sale_eprod_cost}
+	)
+	</foreach>
+	SELECT * FROM DUAL
+</insert>
+	
+	
+	<!-- 엑셀 출력하는 작업  -->
+	<select id="selectSalesEstExcelList" resultType="kr.or.ddit.vo.Sale_Est_ListVO" parameterType="kr.or.ddit.vo.PagingVO"> 
+	    SELECT DISTINCT SALE_EST_DATE
+			,SALE_EST_NO, ORD_COMPL, EMP_NAME
+		    ,CL_NAME, CL_NO
+	    FROM SALE_EST_LIST
+    	<include refid="searchFrag"/>
+	    ORDER BY SALE_EST_NO DESC
+
+	</select>
+	
+	
+	<!-- 견적 수정-->
+	<update id="updateSalesEstimate" parameterType="kr.or.ddit.vo.Sale_EstVO">
+	UPDATE SALE_EST
+	SET SALE_EST_NO = #{sale_est_no}
+		,SALE_DETAIL = #{sale_detail}
+		,EMP_ID = #{emp_id}
+		,CL_NO = #{cl_no}
+		,SALE_EST_DATE = SYSDATE
+	WHERE SALE_EST_NO = #{sale_est_no}
+	</update>
+	
+	<!-- 견적에 대한 상품 수정  -->
+	<update id="updateSalesEprod" parameterType="kr.or.ddit.vo.Sale_EprodVO">
+	UPDATE SALE_EPROD
+	SET SALE_EPROD_NO = #{sale_eprod_no}
+		,SALE_EST_NO = #{sale_est_no}
+		,PROD_NO = #{prod_no}
+		,SALE_EPROD_QTY = #{sale_eprod_qty}
+		,SALE_EPROD_COST = #{sale_eprod_cost}
+	WHERE SALE_EPROD_NO = #{sale_eprod_no}
+	</update>	
+
+	
+</mapper>

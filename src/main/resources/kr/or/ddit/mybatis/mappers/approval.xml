@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.elecAuthorization.dao.IApprovalDAO">
+	<sql id="searchFrag">
+		<where>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchWord)">
+				<choose>
+					<when test='"title".equals(searchType)'>
+						ELEC_TITLE LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test='"writer".equals(searchType)'>
+						ELEC_WRITER LIKE '%' || #{searchWord} || '%' 
+					</when>
+					<when test="@org.apache.commons.lang3.StringUtils@isBlank(searchType)">
+						ELEC_TITLE LIKE '%' || #{searchWord} || '%'	OR
+						ELEC_WRITER LIKE '%' || #{searchWord} || '%' 
+					</when>
+				</choose>
+			</if>
+		</where>
+	</sql>
+	
+	<select id="selectWaitApprovalCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT	COUNT(ELEC_NO) 
+		FROM	WAIT_LIST
+	</select>
+	<select id="selectCompleteApprovalCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT	COUNT(ELEC_NO) 
+		FROM	COMPLETE_LIST
+	</select>
+	
+	<!-- AND 조건은 로그인한 유저가 본결재자인데, 대결자를 지정했을 경우 대기문서리스트에서 제외하는 조건이고-->
+	<!-- OR 조건은 로그인한 유저가 대결자인 경우, 대기문서리스트에 해당 문서를 포함시키는 조건이다. -->
+	<select id="selectWaitApprovalList" resultType="kr.or.ddit.vo.WaitListVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ORDERDAPPROVAL AS (
+			SELECT	
+				ELEC_NO, SEND_CODE, ELEC_WRITER, ELEC_FORM_CODE
+				, ELEC_TITLE, ELEC_CONTENT, ELEC_SENDDATE
+				, ELEC_COMPLE, SEND_TYPE_CODE
+				, APPR_STATUS_CODE, APPR_STATUS_NAME
+				, INSTEAD_ID
+			FROM	WAIT_LIST
+			WHERE   ( AUTHORIZED_ID = #{ emp_id } OR INSTEAD_ID = #{ emp_id } )
+			AND		( AUTHORIZED_ID = #{ emp_id } and INSTEAD_ID IS NULL )
+			OR		INSTEAD_ID = #{ emp_id }
+			<include refid="searchFrag"/>
+			ORDER BY ELEC_NO DESC
+		)
+		SELECT *
+		FROM (
+			SELECT ROWNUM RNUM, ORDERDAPPROVAL.*
+			FROM ORDERDAPPROVAL
+		) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	<select id="selectCompleteApprovalList" resultType="kr.or.ddit.vo.CompleteListVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ORDERDAPPROVAL AS (
+			SELECT	
+				ELEC_NO, SEND_CODE, ELEC_WRITER, ELEC_FORM_CODE
+				, ELEC_TITLE, ELEC_CONTENT, ELEC_SENDDATE
+				, ELEC_COMPLE, SEND_TYPE_CODE
+				, APPR_STATUS_CODE, APPR_STATUS_NAME
+			FROM	COMPLETE_LIST
+			WHERE   ( AUTHORIZED_ID = #{ emp_id } OR INSTEAD_ID = #{ emp_id } )
+			<include refid="searchFrag"/>
+			ORDER BY ELEC_NO DESC
+		)
+		SELECT *
+		FROM (
+			SELECT ROWNUM RNUM, ORDERDAPPROVAL.*
+			FROM ORDERDAPPROVAL
+		) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<resultMap type="kr.or.ddit.vo.WaitListVO" id="approvalMap" autoMapping="true">
+		<id property="elec_no" column="ELEC_NO" />
+		<collection property="fileList" ofType="kr.or.ddit.vo.AttachmentVO" autoMapping="true">
+			<id property="attach_no" column="ATTACH_NO" />
+		</collection>
+	</resultMap>
+	<select id="selectWaitApproval" parameterType="int" resultMap="approvalMap">
+		SELECT	A.ELEC_NO,	 A.SEND_CODE,	ELEC_WRITER
+			, INSTEAD_ID
+			, ELEC_TITLE, ELEC_CONTENT
+			, ELEC_SENDDATE, ELEC_COMPLE
+			, SEND_TYPE_CODE
+			, ATTACH_NO, ATTACH_ORGNAME, ATTACH_PATH
+			, ATTACH_SIZE, ATTACH_FANCYSIZE, ATTACH_MIME
+			, APPR_STATUS_CODE, APPR_STATUS_NAME
+		FROM	WAIT_LIST	A	
+			LEFT OUTER JOIN	ATTACHMENT	B ON( A.ELEC_NO = B.ELEC_NO)
+		WHERE	A.ELEC_NO = #{elec_no}
+	</select>
+	
+	<resultMap type="kr.or.ddit.vo.CompleteListVO" id="completeMap" autoMapping="true">
+		<id property="elec_no" column="ELEC_NO" />
+		<collection property="fileList" ofType="kr.or.ddit.vo.AttachmentVO" autoMapping="true">
+			<id property="attach_no" column="ATTACH_NO" />
+		</collection>
+	</resultMap>
+	<select id="selectCompleteApproval" parameterType="int" resultMap="completeMap">
+		SELECT	A.ELEC_NO,	 A.SEND_CODE,	ELEC_WRITER
+			,  ELEC_TITLE, ELEC_CONTENT
+			, ELEC_SENDDATE, ELEC_COMPLE
+			, SEND_TYPE_CODE
+			, ATTACH_NO, ATTACH_ORGNAME, ATTACH_PATH
+			, ATTACH_SIZE, ATTACH_FANCYSIZE, ATTACH_MIME
+			, APPR_STATUS_CODE, APPR_STATUS_NAME
+		FROM	COMPLETE_LIST	A	
+			LEFT OUTER JOIN	ATTACHMENT	B ON( A.ELEC_NO = B.ELEC_NO)
+		WHERE	A.ELEC_NO = #{elec_no}
+	</select>
+	
+	<update id="updateApprovalComplete" parameterType="int">
+		UPDATE	ELEC_APPROVAL
+		SET		ELEC_COMPLE = 'Y'
+		WHERE	ELEC_NO = #{ elec_no }
+	</update>
+	
+	<select id="selectLineListByElecNo" parameterType="int" resultType="kr.or.ddit.vo.Elec_ApprlineVO">
+		SELECT  
+			ELEC_APPRLINE_CODE
+		    ,   APPR_STATUS_CODE
+		    ,   ELEC_PRIORITY
+		    ,   ELEC_REJECT_REASON
+		    ,   AUTHORIZED_ID
+		    ,   OWNER_ID
+		    ,   INSTEAD_ID
+		    ,   EMP_NAME
+		    ,   POS_NAME
+		FROM    ELEC_APPRLINE  LINE
+		    INNER JOIN EMPLOYEE EM ON ( LINE.AUTHORIZED_ID = EM.EMP_ID )
+		    INNER JOIN POSITION  PO  ON  ( EM.POS_CODE = PO.POS_CODE )
+		WHERE   ELEC_NO =  #{ elec_no }
+	</select>
+	
+	<update id="updateSaleOrderComplete" parameterType="String">
+		UPDATE	SALE_ORD 
+		SET 	ELEC_COMPLE = 'Y'
+		WHERE	SALE_ORD_CODE = #{ sendTypeCode }
+	</update>
+	
+	<update id="updatePurchasOrderComplete" parameterType="String">
+		UPDATE	PUR_ORD 
+		SET 	ELEC_COMPLE = 'Y'
+		WHERE	PUR_ORD_CODE = #{ sendTypeCode }
+	</update>
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.salesTeam.scheduleManage.dao.IScheduleManageDAO">
+	<sql id="searchFrag2">
+		<where>
+			a.ac_delete = 'N'
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.emp_name)">
+						AND EMP_NAME LIKE '%'||#{searchData.emp_name}||'%'
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.ac_startdate)">
+						AND
+						to_date(#{searchData.ac_startdate},'yyyy-mm-dd') 
+						BETWEEN 
+						to_date(to_char(ac_startdate,'yyyy-mm-dd'),'yyyy-mm-dd') 
+						AND 
+						to_date(to_char(ac_enddate,'yyyy-mm-dd'),'yyyy-mm-dd')
+				</if>
+			</if>
+		</where>
+	</sql>
+	
+	<select id="selectScheduleList" resultType="kr.or.ddit.vo.ActiveClientEmpVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ORDEREDACTIVE AS(
+		SELECT
+		    a.ac_no,
+		    to_char(a.ac_startdate,'YYYY-MM-DD hh24:mi') AS ac_startdate,    a.ac_content,    a.ac_sort,
+		    to_char(a.ac_enddate,'YYYY-MM-DD hh24:mi')AS ac_enddate,    a.ac_delete,    a.ac_location
+		    ,e.emp_name,e.emp_id
+		    ,c.cl_name
+		FROM
+		    active a
+		INNER JOIN employee e on e.emp_id = a.emp_id
+		LEFT OUTER JOIN client c on c.cl_no= a.cl_no
+			<include refid="searchFrag2"/>	
+		)
+		SELECT *
+		FROM(
+			SELECT ROWNUM RNUM, ORDEREDACTIVE.*
+			FROM ORDEREDACTIVE
+		)A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>	
+	</select>
+	
+	<select id="selectScheduleCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT
+		    count(a.ac_no)
+		FROM
+		    active a
+		INNER JOIN employee e on e.emp_id = a.emp_id
+		LEFT OUTER JOIN client c on c.cl_no= a.cl_no
+		
+		<include refid="searchFrag2"/>	
+	</select>
+	
+	<select id="selectCalendar" resultType="kr.or.ddit.vo.ActiveVO">
+		SELECT 
+		    ac_startdate,
+		    ac_enddate,
+		    ac_content,
+		    ac_sort
+		FROM active
+		WHERE ac_delete ='N'
+	</select>
+	
+	<insert id="insertSchedule" parameterType="kr.or.ddit.vo.ActiveVO">
+		INSERT INTO active (
+		    ac_no,    cl_no,    emp_id,
+		    ac_startdate,    ac_content,    ac_sort,
+		    ac_enddate,    ac_delete,    ac_location
+		) VALUES (
+		    SEQ_ACTIVE.nextval,   #{cl_no,jdbcType=VARCHAR},    #{emp_id,jdbcType=VARCHAR},
+		    to_date(#{ac_startdate},'yyyy-mm-dd hh24:mi'),    #{ac_content,jdbcType=VARCHAR},    #{ac_sort,jdbcType=VARCHAR},
+		    to_date(#{ac_enddate},'yyyy-mm-dd hh24:mi'),    'N', #{ac_location,jdbcType=VARCHAR}
+		)
+	</insert>
+	
+	<select id="selectClient" resultType="kr.or.ddit.vo.ClientVO" parameterType="string">
+		SELECT cl_no, cl_name
+		FROM client
+		WHERE cl_name like '%' || #{cl_name} || '%'
+	</select>
+	
+	<update id="deleteSchedule" parameterType="kr.or.ddit.vo.ActiveVO">
+		UPDATE active
+		    SET
+		        ac_delete ='Y'
+		WHERE
+		    ac_no = #{ac_no}
+		AND emp_id = #{emp_id}
+	</update>
+	
+	
+	<select id="selectActiveForDel" resultType="kr.or.ddit.vo.ActiveVO" parameterType="int">
+		SELECT
+		    ac_no,    cl_no,    emp_id,
+		    to_char(ac_startdate,'yyyy-mm-dd hh24:mi') ac_startdate,    ac_content,    ac_sort,
+		    to_char(ac_enddate,'yyyy-mm-dd hh24:mi') ac_enddate,    ac_delete,    ac_location
+		FROM
+		    active
+		 WHERE ac_no = #{ac_no}
+	</select>
+	
+	<update id="updateSchedule" parameterType="kr.or.ddit.vo.ActiveVO">
+		UPDATE active
+	    SET
+	        cl_no=#{cl_no,jdbcType=VARCHAR}
+	        ,ac_startdate = to_date(#{ac_startdate},'yyyy-mm-dd hh24:mi')
+	        ,ac_enddate = to_date(#{ac_enddate},'yyyy-mm-dd hh24:mi')
+	        ,ac_content =#{ac_content,jdbcType=VARCHAR}
+	        ,ac_sort =#{ac_sort,jdbcType=VARCHAR}
+	        ,ac_location =#{ac_location,jdbcType=VARCHAR}
+		WHERE
+		    ac_no = #{ac_no}
+	</update>
+	
+	
+	
+</mapper>
+
+
+
+
+
+
+
+

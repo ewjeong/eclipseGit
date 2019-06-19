@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  [[개정이력(Modification Information)]]       -->
+<!--    수정일            수정자             수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.13     박연욱            최초작성               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.mainPage.signUp.dao.ISignUpDAO">
+	
+	
+	
+	<insert id="insertEmployee">
+	<selectKey resultType="string" keyProperty="emp_no" order="BEFORE">
+	 	SELECT 'ISMS'||max(lpad(nvl(to_number(substr(max(emp_no),6)),0)+1,7,'0'))
+		FROM EMPLOYEE
+		GROUP BY EMP_NO
+	 </selectKey>
+		INSERT INTO employee (
+		    emp_id,    dep_code,    pos_code,
+		    emp_pass,    emp_name,    emp_mail,
+		    emp_hp,    emp_add1,    emp_gene,
+		    emp_bir,    emp_manage,    emp_reg1,
+		    emp_reg2,    emp_zip,    emp_add2,
+		    emp_del, emp_no
+		) VALUES (
+			#{emp_id}, 'no_dep', 'no_pos',
+			#{emp_pass}, #{emp_name}, #{emp_mail},
+			#{emp_hp}, #{emp_add1}, #{emp_gene},
+			#{emp_bir}, 'N', #{emp_reg1},
+			#{emp_reg2}, #{emp_zip}, #{emp_add2},
+			'N', #{emp_no}
+			
+		)
+		
+	</insert>
+	
+	<insert id="insertEmployeeRole">
+		INSERT INTO authorities(
+			emp_id, role_auth
+		)VALUES(
+			#{emp_id}, 'ROLE_NOPOSITION'
+		)
+		
+	</insert>
+
+<resultMap type="kr.or.ddit.vo.EmployeeVO" id="authorityMap" autoMapping="true">
+		<id property="emp_id" column="EMP_ID" />
+		<collection property="authorities" ofType="kr.or.ddit.security.CustomGrantedAuthority" autoMapping="true">
+			   <id property="authority" column="ROLE_AUTH"/>
+		</collection>
+	</resultMap>
+	<select id="selectEmployee" resultMap="authorityMap" parameterType="string">
+		SELECT
+		    A.EMP_ID,		    DEP_CODE,		    POS_CODE,
+		    EMP_PASS,		    EMP_NAME,		    EMP_MAIL,
+		    EMP_HP,		    	EMP_ADD1,		    EMP_GENE,
+		    EMP_BIR,		    EMP_MANAGE,		    EMP_REG1,
+		    EMP_REG2,		    EMP_ZIP,		    EMP_ADD2,
+		    EMP_DEL, 			C.ROLE_AUTH
+		FROM
+		    EMPLOYEE A, AUTHORITIES B, ROLES C
+        WHERE A.EMP_ID = B.EMP_ID
+        AND B.ROLE_AUTH = C.ROLE_AUTH
+		AND A.EMP_ID = #{emp_id}
+	</select>
+	
+	
+	
+	<select id="idCheck" parameterType="String" resultType="Integer">
+			SELECT COUNT(*) FROM employee WHERE EMP_ID = #{emp_id}
+	</select>
+
+	<select id="selectDepName" parameterType="String" resultType="kr.or.ddit.vo.DepNameVO">
+		SELECT DEP_NAME FROM DEPARTMENT A, EMPLOYEE B WHERE A.DEP_CODE = B.DEP_CODE AND EMP_ID = #{emp_id}
+	</select>
+
+</mapper>

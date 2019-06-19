@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.purchasingTeam.stockManage.dao.IStockManageDAO">
+
+	<sql id="searchFrag">
+		<where>
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.prod_name)">
+				 	AND PROD_NAME LIKE '%'||#{searchData.prod_name}||'%'
+				</if>
+			 </if>	
+		</where>	
+	</sql>	
+	
+	<select id = "selectStockCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(prod_no)
+		FROM STOCK
+		<include refid="searchFrag" />
+	</select>
+	
+	<select id="selectStockList" resultType="kr.or.ddit.vo.StockVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT A.*
+		FROM (
+			SELECT ROWNUM RNUM, PROD_NO, PROD_NAME,
+					PROD_SIZE, PROD_COLOR,
+	    		   ITEM_NAME, AVG_COST, STOCK
+		    FROM STOCK
+		    <include refid="searchFrag" />
+		    ORDER BY PROD_NO ASC
+		) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<!-- 엑셀출력용 -->
+	<select id="selectExcelList" resultType="kr.or.ddit.vo.StockVO" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR,
+			   ITEM_NAME, AVG_COST, STOCK
+		FROM STOCK
+		<include refid="searchFrag" />
+		ORDER BY PROD_NO ASC
+	</select>
+
+
+
+</mapper>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.configuration.menuManage.dao.ISettingDAO">
+	
+	
+	<resultMap type="kr.or.ddit.vo.Emp_Pos_Dep_VO" id="emp_pos_dep_vo">
+		<result column="emp_id" property="emp_id" />	
+		<result column="emp_name" property="emp_name" />	
+		<result column="pos_code" property="pos_code" />	
+		<result column="pos_name" property="pos_name" />	
+		<result column="dep_code" property="dep_code" />	
+		<result column="dep_name" property="dep_name" />	
+	</resultMap>
+	<select id="selectEmployeelist" parameterType="string" resultMap="emp_pos_dep_vo">
+			SELECT 
+    			A.EMP_NAME, A.EMP_ID, A.EMP_NO, B.POS_NAME, C.DEP_NAME
+			FROM EMPLOYEE A , POSITION B, DEPARTMENT C
+			WHERE A.POS_CODE = B.POS_CODE AND A.DEP_CODE = C.DEP_CODE
+				AND A.EMP_NAME = #{emp_name}  and A.EMP_DEL = 'N'
+	</select>
+	
+	<select id="selectEmployeelistNoneParam" resultMap="emp_pos_dep_vo">
+			SELECT 
+    			A.EMP_NAME, A.EMP_ID, A.EMP_NO, B.POS_NAME, C.DEP_NAME
+			FROM EMPLOYEE A , POSITION B, DEPARTMENT C
+			WHERE A.POS_CODE = B.POS_CODE AND A.DEP_CODE = C.DEP_CODE
+				and A.EMP_DEL = 'N'
+	</select>
+	
+	<select id="selectEmployee" parameterType="map" resultType="kr.or.ddit.vo.Emp_Pos_Dep_VO">
+			  select A.EMP_NAME, A.EMP_ID, A.EMP_NO, B.POS_CODE, C.DEP_CODE
+                FROM EMPLOYEE A , POSITION B, DEPARTMENT C
+                WHERE A.POS_CODE = B.POS_CODE AND A.DEP_CODE = C.DEP_CODE
+                AND A.EMP_NAME = #{emp_name,jdbcType=VARCHAR} AND A.EMP_NO = #{emp_no}
+	</select>
+	
+	<update id="updateEmpAuth" parameterType="kr.or.ddit.vo.Emp_Pos_Dep_VO">
+		UPDATE EMPLOYEE
+			SET POS_CODE = #{pos_code},
+					DEP_CODE = #{dep_code}
+			WHERE EMP_NAME = #{emp_name} AND EMP_NO = #{emp_no}
+	</update>
+	<update id=""></update>
+	
+	<update id="updateEmpDel" parameterType="kr.or.ddit.vo.Emp_Pos_Dep_VO">
+		UPDATE EMPLOYEE
+		SET EMP_DEL = 'Y'
+		WHERE EMP_NAME = #{emp_name} AND EMP_NO = #{emp_no}
+	</update>
+	
+	<update id="updateCompany" parameterType="kr.or.ddit.vo.CompanyVO">
+		UPDATE COMPANY
+		SET COM_NAME = #{com_name},
+			COM_TEL = #{com_tel},
+			COM_ADD1 = #{com_add1},
+			COM_ADD2 = #{com_add2}	
+	</update>
+	<select id="selectCompany" resultType="kr.or.ddit.vo.CompanyVO">
+		SELECT 
+			COM_NO, COM_NAME, COM_TEL, 
+			COM_ADD1, COM_ADD2 
+		FROM COMPANY
+	</select>
+	
+	<select id="selectMenu" parameterType="string" resultType="kr.or.ddit.vo.ResourcesVO">
+		SELECT
+			RES_ID, RES_NAME, RES_PATTERN, RES_TYPE, RES_FLAG
+		FROM RESOURCES	
+		WHERE RES_NAME = #{res_name}
+	</select>
+	
+	<select id="selectMenuList" resultType="kr.or.ddit.vo.ResourcesVO">
+		SELECT 
+			RES_ID, RES_NAME, RES_PATTERN, RES_TYPE, RES_FLAG
+		FROM RESOURCES
+	</select>
+	<update id="updateMenu" parameterType="kr.or.ddit.vo.ResourcesVO">
+		UPDATE RESOURCES
+		SET RES_FLAG = #{res_flag}
+		WHERE RES_NAME = #{res_name}
+	</update>
+	<update id="updateEmpRole" parameterType="kr.or.ddit.vo.Emp_Pos_Dep_VO">
+		UPDATE AUTHORITIES A
+		SET A.ROLE_AUTH = (case when (SELECT pos_code FROM EMPLOYEE B WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'e001' then 'ROLE_EMPLOYEE'
+                     when (SELECT pos_code FROM EMPLOYEE B  WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'e002' then 'ROLE_CHIEF'
+                     WHEN (SELECT pos_code FROM EMPLOYEE B  WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'e003' THEN 'ROLE_TEAMLEADER'
+                     WHEN (SELECT pos_code FROM EMPLOYEE B  WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'e004' then 'ROLE_MANAGER'
+                     WHEN (SELECT pos_code FROM EMPLOYEE B  WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'super' then 'ROLE_SUPERMANAGER'
+                     when (SELECT pos_code FROM EMPLOYEE B  WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'no_pos' then 'ROLE_NOPOSITION'
+                    WHEN(SELECT EMP_DEL FROM EMPLOYEE B WHERE B.EMP_ID = #{emp_id, jdbcType=VARCHAR}) = 'Y' THEN 'ROLE_RESIGNATION'
+                     END)
+		WHERE A.EMP_ID = #{emp_id, jdbcType=VARCHAR}                   
+				
+	</update>
+
+</mapper>

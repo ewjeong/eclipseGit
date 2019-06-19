@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일        수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.14    정은우     최초작성               -->
+<!--  2019.05.15    정은우     검색기능추가               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+  
+<mapper namespace="kr.or.ddit.purchasingTeam.stockManage.dao.IReleaseManageDAO">
+	<sql id="searchFrag">
+		<if test="searchData!=null">
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.rel_date)">
+				AND TO_CHAR(REL_DATE,'YYYY-MM-DD') = to_date(#{searchData.rel_date}, 'yyyy-mm-dd')
+			</if>
+			<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.prod_name)">
+				AND PROD_NAME LIKE '%'||#{searchData.prod_name}||'%'
+			</if>
+		</if>	
+	</sql>	
+	
+	<select id = "selectReleaseCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(sale_ord_code)
+		FROM RELEASE_ORD_LIST
+		where 1=1
+		<include refid="searchFrag" />
+	</select>
+	
+	<select id="selectReleaseList" resultType="kr.or.ddit.vo.Sale_Ord_ListVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH RELEASELIST AS (
+		    SELECT TO_CHAR(REL_DATE,'YYYY-MM-DD') AS REL_DATE, ITEM_NAME, 
+		    PROD_NAME, SALE_OPROD_QTY , PROD_SIZE, PROD_COLOR,
+		    PROD_NO, CL_NO, CL_NAME, EMP_NAME
+		    , SALE_ORD_CODE
+		    FROM RELEASE_ORD_LIST
+		    WHERE SALE_ORD_COMPLETE = 'Y' 
+		    <include refid="searchFrag" />
+		    ORDER BY REL_DATE DESC, SALE_ORD_CODE DESC
+		)
+		SELECT *
+		FROM (
+		    SELECT ROWNUM RNUM, RELEASELIST.*
+		    FROM RELEASELIST
+		) A
+		<![CDATA[
+ 			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+ 		]]> 
+	</select>
+
+	<!-- 모달창에 띄울 주문서리스트 가져올때 사용-->
+	<select id="selectOrdList" resultType="kr.or.ddit.vo.SelectSaleOrdListVO"
+				parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT DISTINCT TO_CHAR(SALE_ORD_DATE, 'YYYY-MM-DD') AS SALE_ORD_DATE,
+						 SALE_ORD_CODE, CL_NAME
+		FROM SALE_ORD_LIST
+        WHERE SALE_ORD_CODE NOT IN (SELECT SALE_ORD_CODE FROM RELEASE)
+        AND ELEC_COMPLE = 'Y'
+		ORDER BY SALE_ORD_DATE DESC
+	</select>
+
+	<!-- 주문서번호 선택해서 일치하는 정보 가져올때 사용 -->
+	<select id="selectSaleOrd" resultMap="ordMap" parameterType="String">
+		SELECT SALE_ORD_CODE, SALE_ORD_DATE, CL_NO, CL_NAME, 
+				SALE_OPROD_COST, SALE_OPROD_QTY,
+				ITEM_NAME, PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR
+		FROM RELEASE_FORM_LIST
+		WHERE SALE_ORD_CODE = #{sale_ord_code} 
+	</select>
+	<resultMap type="kr.or.ddit.vo.Release_Form_ListVO" id="ordMap" autoMapping="true">
+		<id property="sale_ord_code" column="SALE_ORD_CODE" />
+		<collection property="sale_oprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Sale_OprodVO" />
+	</resultMap>
+	
+	<!-- 출고등록 -->
+	<insert id="insertRelease" parameterType="kr.or.ddit.vo.ReleaseVO">
+		<selectKey resultType="int" keyProperty="rel_no" order="BEFORE">
+			SELECT SEQ_RELEASE.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO RELEASE(
+			 REL_NO, SALE_ORD_CODE, EMP_ID,     
+			 REL_DATE, REL_DELETE 
+		) VALUES (
+			 #{rel_no}, #{sale_ord_code}, 
+			 #{emp_id}, #{rel_date}, 'N' 
+		)
+	</insert>
+
+	<!-- 엑셀 -->
+	<select id="selectExcelList" resultType="kr.or.ddit.vo.Sale_Ord_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT TO_CHAR(REL_DATE,'YYYY-MM-DD') AS REL_DATE, ITEM_NAME, 
+		    PROD_NAME, SALE_OPROD_QTY , PROD_SIZE, PROD_COLOR,
+		    PROD_NO, CL_NO, CL_NAME, EMP_NAME
+		FROM RELEASE_ORD_LIST 
+		WHERE REL_DATE IS NOT NULL
+		<include refid="searchFrag" />
+		ORDER BY REL_DATE DESC
+	</select>
+</mapper>
+
+
+
+
+

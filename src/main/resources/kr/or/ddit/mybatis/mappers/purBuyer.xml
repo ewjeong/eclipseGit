@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.or.ddit.purchasingTeam.buyerManage.dao.IBuyerPManageDAO">
+	<sql id="searchFrag">
+		<where>
+			cl_sort=0
+			AND cl_delete = 'N'
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_name)">
+						AND CL_NAME LIKE '%'||#{searchData.cl_name}||'%'
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_add1)">
+						AND CL_ADD1 LIKE '%'||#{searchData.cl_add1} ||'%'
+				</if>
+			</if>
+		</where>
+	</sql>
+	
+	<select id="selectPurBuyerList" resultType="kr.or.ddit.vo.ClientVO" parameterType="kr.or.ddit.vo.PagingVO">
+		WITH ORDEREDACTIVE AS(
+			SELECT
+			    cl_no,    cl_empid,    cl_name,
+			    cl_charger,    cl_tel,    cl_mail,
+			    cl_detail,    cl_bank,    cl_receive,
+			    cl_add1,    cl_add2,    cl_items,
+			    cl_bankno,    cl_depository,    cl_sort,
+			    cl_delete
+			FROM
+			    client
+			<include refid="searchFrag"/>
+			ORDER BY CL_NO DESC
+		)
+		SELECT *
+		FROM(
+			SELECT ROWNUM RNUM, ORDEREDACTIVE.*
+			FROM ORDEREDACTIVE
+		)A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>	
+	</select>
+	
+	<select id="selectPurBuyerCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT count(cl_no)
+		FROM client
+		<include refid="searchFrag"/>	
+	</select>
+	
+	
+	<insert id="insertPurBuyer" parameterType="kr.or.ddit.vo.ClientVO">
+		<selectKey keyProperty="cl_no" resultType="string" order="BEFORE">
+			SELECT 'CL_'||LPAD( MAX(SUBSTR(CL_NO,4,6)+1),3,'0') CL_NO
+			FROM CLIENT
+		</selectKey>
+		INSERT INTO client (
+		    cl_no,    cl_empid,    cl_name,
+		    cl_charger,    cl_tel,    cl_mail,
+		    cl_detail,    cl_bank,    cl_receive,
+		    cl_add1,    cl_add2,    cl_items,
+		    cl_bankno,    cl_depository,    cl_sort,
+		    cl_delete, cl_zip
+		) VALUES (
+		    #{cl_no},    #{cl_empid},    #{cl_name},
+		    #{cl_charger,jdbcType=VARCHAR},    #{cl_tel},    #{cl_mail},
+		    #{cl_detail,jdbcType=VARCHAR}, #{cl_bank,jdbcType=VARCHAR}, #{cl_receive,jdbcType=VARCHAR},
+		    #{cl_add1,jdbcType=VARCHAR},    #{cl_add2,jdbcType=VARCHAR},    #{cl_items,jdbcType=VARCHAR},
+		    #{cl_bankno,jdbcType=VARCHAR},    #{cl_depository,jdbcType=VARCHAR},    0,
+		    'N', #{cl_zip,jdbcType=NUMERIC}
+		)
+	</insert>
+	
+	<select id="selectItem" resultType="string" parameterType="kr.or.ddit.vo.ItemVO">
+		SELECT item_name
+		FROM item
+		WHERE top_item_code IS NULL
+		AND item_delete = 'N'
+		AND item_name = #{item_name}
+	</select>
+	
+	<select id="selectDetailBuyer" resultType="kr.or.ddit.vo.ClientEmpVO" parameterType="string">
+		SELECT
+		    c.cl_no,    c.cl_empid,    c.cl_name,
+		    c.cl_charger,    c.cl_tel,    c.cl_mail,
+		    c.cl_detail,    c.cl_bank,    c.cl_receive,
+		    c.cl_add1,    c.cl_add2,    c.cl_items,
+		    c.cl_bankno,    c.cl_depository,    c.cl_sort,
+		    c.cl_delete,    c.cl_zip, 	e.emp_name
+		FROM
+		    client c
+		INNER JOIN  employee e on(c.cl_empid = e.emp_id)
+		WHERE cl_no = #{cl_no}    
+	</select>
+	
+	<update id="updatePurBuyer" parameterType="kr.or.ddit.vo.ClientEmpVO">
+		UPDATE client
+		    SET
+		        cl_name= #{cl_name}
+		        ,cl_charger = #{cl_charger,jdbcType=VARCHAR}
+		        ,cl_tel = #{cl_tel}
+		        ,cl_mail = #{cl_mail}
+		        ,cl_detail = #{cl_detail,jdbcType=VARCHAR}
+		        ,cl_bank = #{cl_bank,jdbcType=VARCHAR}
+		        ,cl_receive = #{cl_receive,jdbcType=VARCHAR}
+		        ,cl_add1= #{cl_add1,jdbcType=VARCHAR}
+		        ,cl_add2 = #{cl_add2,jdbcType=VARCHAR}
+		        ,cl_items = #{cl_items,jdbcType=VARCHAR}
+		        ,cl_bankno = #{cl_bankno,jdbcType=VARCHAR}
+		        ,cl_depository = #{cl_depository,jdbcType=VARCHAR}
+		        ,cl_zip = #{cl_zip,jdbcType=NUMERIC}
+		WHERE
+		    cl_no = #{cl_no}
+		AND 
+			cl_empid = #{cl_empid}    
+	</update>
+	
+	<update id="deletePurBuyer" parameterType="kr.or.ddit.vo.ClientVO">
+		UPDATE client
+		    SET
+		     cl_delete = 'Y'
+		WHERE
+		    cl_no = #{cl_no}
+		    AND   cl_empid = #{cl_empid}
+
+	</update>
+
+
+</mapper>

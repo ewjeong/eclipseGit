@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일        수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.13    정은우     최초작성               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+ 
+<mapper namespace="kr.or.ddit.purchasingTeam.orderManage.dao.IOrderPManageDAO">
+	
+	<sql id="searchFrag">
+		<where>
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.pur_ord_date)">
+					AND TO_CHAR(PUR_ORD_DATE,'YYYY-MM-DD') = to_date(#{searchData.pur_ord_date}, 'YYYY-MM-DD')
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_name)">
+				 	AND CL_NAME LIKE '%'||#{searchData.cl_name}||'%'
+				</if>
+			 </if>	
+		</where>	 
+	</sql>	
+	
+	<select id = "selectPurOrderCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(pur_ord_code)
+		FROM PUR_ORD_LIST
+		<include refid="searchFrag" />
+	</select>
+	
+	<select id="selectPurOrderList" resultType="kr.or.ddit.vo.Pur_Ord_ListVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH PURORDLIST AS(
+            SELECT DISTINCT TO_CHAR(PUR_ORD_DATE,'YYYY-MM-DD') AS PUR_ORD_DATE, 
+            PUR_ORD_CODE, EMP_NAME, CL_NO, CL_NAME, 
+            (CASE WHEN ELEC_COMPLE = 'Y' THEN '결재승인'
+                 WHEN ELEC_COMPLE = 'N' THEN '결재대기'
+                 ELSE '미결재' END) AS ELEC_COMPLE
+            FROM PUR_ORD_LIST
+            <include refid="searchFrag" />
+            ORDER BY PUR_ORD_DATE DESC, PUR_ORD_CODE DESC
+        )
+        SELECT *
+        FROM (
+            SELECT ROWNUM RNUM, PURORDLIST.*
+            FROM PURORDLIST
+        ) A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>	
+	
+	<!-- 모달창에 띄울 견적서리스트 가져올때 사용-->
+	<select id="selectEstList" resultType="kr.or.ddit.vo.SelectPurEstListVO"
+				parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT DISTINCT TO_CHAR(PUR_EST_DATE, 'YYYY-MM-DD') AS PUR_EST_DATE,
+						 PUR_EST_NO, CL_NAME
+		FROM PUR_EST_LIST
+        WHERE PUR_EST_NO NOT IN (SELECT PUR_EST_NO FROM PUR_ORD)
+		ORDER BY PUR_EST_DATE DESC
+	</select>
+	
+	<!-- 견적서번호를 선택해서 일치하는 정보 가져올때 사용-->
+	<select id="selectPurEst" resultMap="estMap" parameterType="String">
+		SELECT  PUR_EST_NO, CL_NO, CL_NAME, 
+				COM_NAME, COM_TEL, COM_ADD1, COM_ADD2,
+				PUR_EPROD_COST, PUR_EPROD_QTY, PROD_SIZE, PROD_COLOR,
+				ITEM_NAME, PROD_NO, PROD_NAME,
+				(PUR_EPROD_COST*PUR_EPROD_QTY) AS TOTAL_COST
+		FROM PUR_EST_LIST
+		WHERE PUR_EST_NO = #{pur_est_no}
+	</select>
+	<resultMap type="kr.or.ddit.vo.Pur_Est_ListVO" id="estMap" autoMapping="true">
+		<id property="pur_est_no" column="PUR_EST_NO" />
+		<collection property="pur_eprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Pur_Eprod_ListVO" />
+	</resultMap>
+	
+	
+	<!-- 발주서상세조회 -->
+	<select id="selectPurOrder" resultMap="ordMap" parameterType="String" >
+		SELECT PUR_ORD_CODE, TO_CHAR(PUR_ORD_DATE, 'YYYY-MM-DD') AS PUR_ORD_DATE,
+			   ORD_EMP_ID, EMP_NAME, COM_NAME, COM_TEL,
+			   COM_ADD1, COM_ADD2, CL_NO, CL_NAME,
+			   PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR, 
+			   PUR_OPROD_QTY, PUR_OPROD_COST,
+			   DECODE(PAYMENT, 0, '현금', '카드') AS PAYMENT,
+			   (PUR_OPROD_QTY * PUR_OPROD_COST) AS ORD_COST,
+			   (CASE WHEN ELEC_COMPLE = 'Y' THEN '결재승인'
+                 WHEN ELEC_COMPLE = 'N' THEN '결재대기'
+                 ELSE '미결재' END) AS ELEC_COMPLE
+		FROM PUR_ORD_LIST
+		WHERE PUR_ORD_CODE = #{pur_ord_code}
+	</select>
+	<resultMap type="kr.or.ddit.vo.Pur_Ord_ListVO" id="ordMap" autoMapping="true">
+		<id property="pur_ord_code" column="PUR_ORD_CODE" />
+		<collection property="pur_oprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Pur_Oprod_ListVO" />
+	</resultMap>
+	
+	<!-- 발주서등록 -->
+	<insert id="inserPurOrder" parameterType="kr.or.ddit.vo.Pur_OrdVO">
+		<selectKey resultType="String" keyProperty="pur_ord_code" order="BEFORE">
+			SELECT 'PO_'||RPAD('0', 3, MAX(SUBSTR(PUR_ORD_CODE, 4, 6)+1)) AS PUR_ORD_CODE 
+      		FROM PUR_ORD
+		</selectKey>
+		INSERT ALL
+			INTO PUR_ORD(
+				PUR_ORD_CODE, ORD_EMP_ID,     
+			 	PUR_EST_NO, PUR_ORD_DATE, PAYMENT 
+			) VALUES (
+				 #{pur_ord_code}, #{ord_emp_id}, 
+				 #{pur_est_no}, #{pur_ord_date}, #{payment} 
+			)
+		<foreach collection="pur_oprodList" item="pur_oprod" index="idx">
+			INTO PUR_OPROD(
+				PUR_OPROD_NO, PUR_ORD_CODE, PUR_OPROD_QTY,
+				PUR_OPROD_COST, PROD_NO
+			)VALUES(
+				(
+					SELECT MAX(PUR_OPROD_NO) FROM PUR_OPROD
+				) + #{ idx } +1
+				, #{pur_ord_code}, #{pur_oprod.pur_oprod_qty}
+				, #{pur_oprod.pur_oprod_cost}, #{pur_oprod.prod_no}
+			)
+		</foreach>	
+			SELECT * FROM DUAL
+	</insert>
+
+	<!-- 엑셀 -->
+	<select id="selectExcelList" resultType="kr.or.ddit.vo.Pur_Ord_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT DISTINCT TO_CHAR(PUR_ORD_DATE,'YYYY-MM-DD') AS PUR_ORD_DATE, 
+            PUR_ORD_CODE, EMP_NAME, CL_NO, CL_NAME, 
+            (CASE WHEN ELEC_COMPLE = 'Y' THEN '결재승인'
+                 WHEN ELEC_COMPLE = 'N' THEN '결재대기'
+                 ELSE '미결재' END) AS ELEC_COMPLE
+        FROM PUR_ORD_LIST
+        <include refid="searchFrag" />
+        ORDER BY PUR_ORD_DATE DESC, PUR_ORD_CODE DESC
+	</select>
+</mapper>
+
+
+
+
+
+
+
+
+
+
+

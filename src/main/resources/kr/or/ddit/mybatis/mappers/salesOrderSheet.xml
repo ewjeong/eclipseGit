@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일        수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.05.13    정은우     최초작성               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+
+<mapper namespace="kr.or.ddit.purchasingTeam.SalesOrderSheet.dao.ISalesOrderSheetDAO">
+
+	<sql id="searchFrag">
+		<trim prefix="AND">
+			<if test="searchData!=null">
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.sale_ord_date)">
+					TO_CHAR(SALE_ORD_DATE,'YYYY-MM-DD') = to_date(#{searchData.sale_ord_date}, 'YYYY-MM-DD')
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_name)">
+				 	CL_NAME LIKE '%'||#{searchData.cl_name}||'%'
+				</if>
+			 </if>	
+		</trim>	 
+	</sql>	
+	
+	<select id = "selectSalesOrderCount" resultType="long" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT COUNT(A.sale_ord_code)
+		FROM SALE_ORD_LIST A LEFT OUTER JOIN CLIENT B
+			ON (A.CL_NO = B.CL_NO)
+		<if test="searchData!=null">
+			<where>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.sale_ord_date)">
+					AND TO_CHAR(A.SALE_ORD_DATE,'YYYY-MM-DD') = to_date(#{searchData.sale_ord_date}, 'YYYY-MM-DD')
+				</if>
+				<if test="@org.apache.commons.lang3.StringUtils@isNotBlank(searchData.cl_name)">
+				 	AND A.CL_NAME LIKE '%'||#{searchData.cl_name}||'%'
+				</if>
+			</where>
+		</if>	
+	</select>
+	
+	<select id="selectSalesOrderSheetList" resultType="kr.or.ddit.vo.Sale_Ord_ListVO" 
+				parameterType="kr.or.ddit.vo.PagingVO">
+		WITH SALEORDLIST AS(
+			SELECT DISTINCT TO_CHAR(SALE_ORD_DATE,'YYYY-MM-DD') AS SALE_ORD_DATE, 
+				   SALE_ORD_CODE, 
+				   CL_NAME, CL_CHARGER, 
+				   DECODE(PAYMENT, '0', '현금', '카드') AS PAYMENT,
+				   DECODE(SALE_ORD_COMPLETE, 'N', '출고대기', '출고완료') AS SALE_ORD_COMPLETE
+		    FROM SALE_ORD_LIST
+		    WHERE ELEC_COMPLE = 'Y'
+		    <include refid="searchFrag" />
+		    ORDER BY SALE_ORD_DATE DESC, SALE_ORD_CODE DESC
+		) 
+        SELECT *
+        FROM (
+            SELECT ROWNUM RNUM, SALEORDLIST.*
+            FROM SALEORDLIST
+        )A
+		<![CDATA[
+			WHERE RNUM >= #{startRow} AND RNUM <= #{endRow}
+		]]>
+	</select>
+	
+	<!-- 영업팀주문서 상세조회 -->
+	<select id="selectSalesOrderSheet" parameterType="String" resultMap="ordMap">
+		SELECT
+			 SALE_ORD_CODE,
+			 TO_CHAR(SALE_ORD_DATE, 'YYYY-MM-DD') AS SALE_ORD_DATE,
+			 CL_CHARGER, CL_RECEIVE, CL_TEL,
+			 CL_ADD1, CL_ADD2, CL_NO, CL_NAME,
+			 PROD_NO, PROD_NAME, PROD_SIZE, PROD_COLOR,
+			 SALE_OPROD_QTY,  
+			 DECODE(PAYMENT, '0', '현금', '카드') AS PAYMENT,
+			 TOTAL_COST,
+			 SALE_OPROD_COST, 
+			 DECODE(SALE_ORD_COMPLETE, 'N', '출고대기', '출고완료') AS SALE_ORD_COMPLETE
+		FROM SALE_ORD_LIST
+		WHERE SALE_ORD_CODE = #{sale_ord_code}
+	</select>
+	<resultMap type="kr.or.ddit.vo.Sale_Ord_ListVO" id="ordMap" autoMapping="true">
+		<id property="sale_ord_code" column="SALE_ORD_CODE" />
+		<collection property="sale_oprodList" autoMapping="true" 
+			ofType="kr.or.ddit.vo.Sale_OprodVO" />
+	</resultMap>
+	
+	<!-- 엑셀출력용 -->
+	<select id="selectExcelList" resultType="kr.or.ddit.vo.Sale_Ord_ListVO" parameterType="kr.or.ddit.vo.PagingVO">
+		SELECT DISTINCT TO_CHAR(SALE_ORD_DATE, 'YYYY-MM-DD') AS SALE_ORD_DATE,
+				SALE_ORD_CODE, CL_CHARGER, CL_NAME, 
+				DECODE(PAYMENT, '0', '현금', '카드') AS PAYMENT,
+				DECODE(SALE_ORD_COMPLETE, 'N', '출고대기', '출고완료') AS SALE_ORD_COMPLETE  
+		FROM SALE_ORD_LIST
+		WHERE ELEC_COMPLE = 'Y'
+		    <include refid="searchFrag" />
+		ORDER BY SALE_ORD_DATE DESC
+	</select>
+	
+
+
+
+
+
+
+
+
+
+
+
+
+</mapper>

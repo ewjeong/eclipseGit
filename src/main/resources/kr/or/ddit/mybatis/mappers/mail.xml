@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--  [[개정이력(Modification Information)]]       -->
+<!--  수정일       			 수정자     수정내용               -->
+<!--  ==========   ======    ==============        -->
+<!--  2019.06.04    박연욱     최초작성               -->
+<!--  Copyright (c) ${year} by DDIT All right reserved -->
+<mapper namespace="kr.or.ddit.mail.dao.IMailDAO">
+	
+	<select id="selectToken" parameterType="string" resultType="kr.or.ddit.vo.TokenVO">
+		SELECT EMP_ID, ACCESS_TOKEN, REFRESH_TOKEN FROM TOKEN 
+		WHERE EMP_ID = #{emp_id}
+	</select>
+
+	<insert id="insertToken" >
+		MERGE INTO TOKEN
+		USING DUAL
+		ON ((SELECT EMP_ID FROM TOKEN WHERE EMP_ID = #{emp_id}) IS NOT NULL)  <!--emp_id가 널이아닐 -->
+		WHEN MATCHED THEN 
+		UPDATE  SET ACCESS_TOKEN = #{access_token} WHERE EMP_ID = #{emp_id}
+		WHEN NOT MATCHED THEN 
+		INSERT VALUES(#{emp_id},#{access_token},#{refresh_token, jdbcType=VARCHAR})
+	</insert>
+<!-- 		INSERT INTO TOKEN( -->
+<!-- 			EMP_ID,ACCESS_TOKEN,REFRESH_TOKEN) -->
+<!-- 		VALUES( -->
+<!-- 			#{emp_id}, #{access_token}, #{refresh_token} -->
+<!-- 		) -->
+	
+	<update id="updateToken" parameterType="kr.or.ddit.vo.TokenVO" >
+		MERGE INTO TOKEN
+		USING TOKEN 
+		ON (EMP_ID = #{emp_id})  <!--emp_id가 널이아닐 -->
+		WHEN MATCHED THEN 
+		UPDATE  SET ACCESS_TOKEN = #{access_token} WHERE EMP_ID = #{emp_id}
+		WHEN NOT MATCHED THEN 
+		INSERT VALUES(#{emp_id},#{access_token},#{refresh_token})
+	</update>
+<!-- 		UPDATE TOKEN -->
+<!-- 		SET ACCESS_TOKEN = #{access_token} -->
+<!-- 		WHERE EMP_ID = #{emp_id} -->
+	
+	
+	
+</mapper>

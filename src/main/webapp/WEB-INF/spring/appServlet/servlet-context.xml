@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xmlns:c="http://www.springframework.org/schema/c"
+   xmlns:context="http://www.springframework.org/schema/context"
+   xmlns:mvc="http://www.springframework.org/schema/mvc"
+   xmlns:p="http://www.springframework.org/schema/p"
+   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+      http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+      http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.3.xsd">
+
+   <context:component-scan base-package="kr.or.ddit" use-default-filters="false">
+      <context:include-filter type="annotation" 
+         expression="org.springframework.stereotype.Controller"/>
+      <context:include-filter type="annotation" 
+         expression="kr.or.ddit.common.annotation.Preparer"/>
+      <context:include-filter type="annotation" 
+         expression="org.springframework.web.bind.annotation.ControllerAdvice"/>   
+   </context:component-scan>
+  
+  
+  
+<!-- 우선순위는 마지막이 되어야함 / order 주지 않으면 자동으로 마지막으로 밀리게됨    -->
+<!-- 동일전략을 여러개 등록하는 경우, order에 의해 우선순위를 설정해야함 -->
+<!-- 주의!) IRVR는 어떤 경우에도 가장 마지막에 동작해야함 -->
+<!-- order 생략하면, Integer.MAX_VALUE가 할당됨 -->
+   <bean id="IRVR" class="org.springframework.web.servlet.view.InternalResourceViewResolver" 
+      p:prefix="/WEB-INF/views/"
+      p:suffix=".jsp"
+   />
+   
+   <bean class="org.springframework.web.servlet.view.tiles3.TilesConfigurer" 
+      p:definitions="classpath:kr/or/ddit/tiles/*-definitions.xml"
+      p:preparerFactoryClass="org.springframework.web.servlet.view.tiles3.SpringBeanPreparerFactory"
+   />
+   
+   <bean class="org.springframework.web.servlet.view.tiles3.TilesViewResolver" 
+      p:order="1"
+   />
+   
+   <!-- 추상뷰를 상속받음 -->
+   <bean id = "jsonView" class = "org.springframework.web.servlet.view.json.MappingJackson2JsonView"></bean>
+   
+   <!-- 컨테이너 안에 등록된 빈 중에 찾음, 논리적인 뷰 네임과 같은애들을-->
+   <bean id="BNVR" class = "org.springframework.web.servlet.view.BeanNameViewResolver" 
+      p:order="2"
+   />
+   
+   <mvc:default-servlet-handler/>
+   
+   <mvc:resources location="/resources/" mapping="/res/**" cache-period="0" />
+   
+   <bean id="multipartResolver" class="org.springframework.web.multipart.support.StandardServletMultipartResolver"></bean>
+   
+   <mvc:annotation-driven />
+   
+   <bean id="localeResolver" class="org.springframework.web.servlet.i18n.CookieLocaleResolver" 
+      p:cookieName="langCookie"
+      p:cookiePath="/"
+      p:cookieMaxAge="#{60*60*24*2}"
+   />
+   
+   <mvc:interceptors>
+      <bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor" 
+         p:paramName="lang"
+      />
+   </mvc:interceptors>
+   
+   <!-- 메세지 -->
+   <bean id="messageSource" class = "org.springframework.context.support.ResourceBundleMessageSource" 
+      p:basename="kr.or.ddit.msgs.message"
+   />
+   
+<!--    단순 view로 연결하기 위한 simpleContorller 등록 -->
+   <mvc:view-controller path="/" view-name="/home"/>
+</beans>
+
+
+
+
+
+
+
