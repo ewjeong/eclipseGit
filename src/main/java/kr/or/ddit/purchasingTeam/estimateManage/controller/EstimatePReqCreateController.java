@@ -78,7 +78,8 @@ public class EstimatePReqCreateController {
 	}
 	
 	//ajax로 상품에 대한 정보 불러오기
-	@RequestMapping(value="/purchasingTeam/estimateManage/estimateProd/{prod_no}", produces="application/json;charset=UTF-8")
+	@RequestMapping(value="/purchasingTeam/estimateManage/estimateProd/{prod_no}"
+					, produces="application/json;charset=UTF-8")
 	@ResponseBody
 	public ProductVO ajaxGetProd(@PathVariable int prod_no ){
 		 
